@@ -1,0 +1,10 @@
+{
+  "app": "ratio",
+  "title": "Ratio",
+  "upstream": "tyler-class/ratio",
+  "dataNote": "Your data lives in the database and file storage, not here, so it isn't touched.",
+  "email": "ratio@tylerclass.net",
+  "counted": "roasters, beans, brews and photos",
+  "files": true,
+  "push": true
+}

@@ -1,0 +1,9 @@
+node_modules
+dist
+dev-dist
+.wrangler
+data
+package-lock.json
+src/worker/worker-configuration.d.ts
+public/*.svg
+*.local.*

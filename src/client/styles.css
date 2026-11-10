@@ -1,0 +1,2246 @@
+/* Ratio: the Crema palette (roasted browns, cream paper, terracotta accent) on Duffel's
+   layout — bottom tabs on phones, a sidebar from 768px, sheets that rise from the bottom. */
+
+:root {
+  --bg: #f5eee3;
+  --surface: #fffcf8;
+  --surface2: #efe5d5;
+  --ink: #2a1b11;
+  --ink2: #7b6552;
+  --line: #e3d5bf;
+  --accent: #a4542a;
+  --accent-ink: #fff7ee;
+  --accent-soft: #f3dfca;
+  --good: #58804a;
+  --good-soft: #e1ebd6;
+  --warn: #b97d1f;
+  --warn-soft: #f5e6c4;
+  --bad: #b2453a;
+  --bad-soft: #f3d8d1;
+  --blue: #4a6d86;
+  --blue-soft: #dae7ee;
+  /* Each tone's ink on its soft fill (4.5:1 or better). */
+  --good-ink: #466b39;
+  --warn-ink: #82540c;
+  --bad-ink: #9e3a30;
+  --blue-ink: #405f75;
+  --scrim: rgb(20 10 4 / 0.5);
+  --sh: 0 1px 2px rgba(60, 32, 12, 0.05), 0 10px 28px rgba(60, 32, 12, 0.07);
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --sans:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, 'Segoe UI', system-ui, sans-serif;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Phone tab bar geometry: its height, its gap above the screen bottom (just over the home
+     indicator), and the room content and bottom-pinned things leave for it. */
+  --tabbar-h: 62px;
+  --tabbar-gap: max(calc(var(--safe-bottom) - 8px), 12px);
+  --tabbar-clear: calc(var(--tabbar-h) + var(--tabbar-gap));
+  /* Phone tab bar: a floating glass capsule. Fill, a near-solid fill for reduced transparency,
+     the specular rim (top bright, bottom faint), a hairline edge, the drop shadow, the lens behind
+     the current tab, and the labels not chosen (stronger than --ink2 to read on glass). */
+  --glass-fill: rgb(255 251 245 / 0.66);
+  --glass-solid: rgb(247 241 231 / 0.97);
+  --glass-rim-top: rgb(255 255 255 / 0.95);
+  --glass-rim-low: rgb(255 255 255 / 0.35);
+  --glass-edge: rgb(60 32 12 / 0.1);
+  --glass-shadow: 0 10px 30px rgb(60 32 12 / 0.14), 0 2px 6px rgb(60 32 12 / 0.07);
+  --glass-lens: rgb(60 32 12 / 0.07);
+  --glass-lens-held: rgb(255 255 255 / 0.55);
+  --glass-label: #5a4535;
+  /* Space kept above a sheet, below the safe area (iOS's top bar is ~44px past it). */
+  --sheet-gap: 56px;
+  color-scheme: light;
+}
+
+/* Dark: follows the system unless Settings → Appearance picks one (data-theme on <html>). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #150f0b;
+    --surface: #241a13;
+    --surface2: #34261c;
+    --ink: #f4e9db;
+    --ink2: #cdb9a3;
+    --line: #4d3a2b;
+    --accent: #e0914f;
+    --accent-ink: #1b0f07;
+    --accent-soft: #4b301c;
+    --good: #92b87f;
+    --good-soft: #2b3a24;
+    --warn: #e3ae4f;
+    --warn-soft: #463619;
+    --bad: #e07d6e;
+    --bad-soft: #4a251f;
+    --blue: #86b0cb;
+    --blue-soft: #22343f;
+    --good-ink: var(--good);
+    --warn-ink: var(--warn);
+    --bad-ink: var(--bad);
+    --blue-ink: var(--blue);
+    --scrim: rgb(0 0 0 / 0.6);
+    --sh: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.35);
+    --glass-fill: rgb(36 26 19 / 0.64);
+    --glass-solid: rgb(30 22 16 / 0.97);
+    --glass-rim-top: rgb(255 240 225 / 0.2);
+    --glass-rim-low: rgb(255 240 225 / 0.06);
+    --glass-edge: rgb(255 240 225 / 0.08);
+    --glass-shadow: 0 10px 30px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.32);
+    --glass-lens: rgb(255 240 225 / 0.1);
+    --glass-lens-held: rgb(255 240 225 / 0.16);
+    --glass-label: #e0cfbb;
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --bg: #150f0b;
+  --surface: #241a13;
+  --surface2: #34261c;
+  --ink: #f4e9db;
+  --ink2: #cdb9a3;
+  --line: #4d3a2b;
+  --accent: #e0914f;
+  --accent-ink: #1b0f07;
+  --accent-soft: #4b301c;
+  --good: #92b87f;
+  --good-soft: #2b3a24;
+  --warn: #e3ae4f;
+  --warn-soft: #463619;
+  --bad: #e07d6e;
+  --bad-soft: #4a251f;
+  --blue: #86b0cb;
+  --blue-soft: #22343f;
+  --good-ink: var(--good);
+  --warn-ink: var(--warn);
+  --bad-ink: var(--bad);
+  --blue-ink: var(--blue);
+  --scrim: rgb(0 0 0 / 0.6);
+  --sh: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.35);
+  --glass-fill: rgb(36 26 19 / 0.64);
+  --glass-solid: rgb(30 22 16 / 0.97);
+  --glass-rim-top: rgb(255 240 225 / 0.2);
+  --glass-rim-low: rgb(255 240 225 / 0.06);
+  --glass-edge: rgb(255 240 225 / 0.08);
+  --glass-shadow: 0 10px 30px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.32);
+  --glass-lens: rgb(255 240 225 / 0.1);
+  --glass-lens-held: rgb(255 240 225 / 0.16);
+  --glass-label: #e0cfbb;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+}
+html {
+  overscroll-behavior-x: none;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+  /* No browser back/forward on a sideways swipe: sideways swipes switch tabs. */
+  overscroll-behavior-x: none;
+}
+button {
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+a {
+  color: var(--accent);
+}
+img {
+  max-width: 100%;
+}
+/* 16px keeps iOS Safari from zooming into fields. */
+input,
+select,
+textarea {
+  font-size: 16px;
+  font-family: inherit;
+}
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
+}
+h1,
+h2,
+h3,
+.serif,
+.stat .v,
+.rb,
+.ratio .big {
+  font-family: var(--serif);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* ---------- app shell ---------- */
+
+/* min-height 100lvh: on short pages iOS home-screen apps otherwise float the tab bar. */
+.shell {
+  min-height: 100%;
+  min-height: 100lvh;
+}
+.appbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--safe-top) + 52px);
+  padding-top: var(--safe-top);
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.appbar-home {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 12px;
+  color: inherit;
+  text-decoration: none;
+}
+.appbar .brand {
+  font-size: 20px;
+  gap: 8px;
+}
+.appbar .logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+}
+.main {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 8px 16px calc(var(--tabbar-clear) + 88px);
+}
+.side {
+  display: none;
+}
+/* The floating glass tab bar (phones). Content scrolls underneath and shows blurred through. */
+.glass-bar {
+  position: fixed;
+  z-index: 30;
+  left: 16px;
+  right: 16px;
+  bottom: var(--tabbar-gap);
+  height: var(--tabbar-h);
+  max-width: 480px;
+  margin-inline: auto;
+  border-radius: 999px;
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  backdrop-filter: blur(18px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 var(--glass-rim-top),
+    0 0 0 0.5px var(--glass-edge),
+    var(--glass-shadow);
+  /* Drags on the bar move the lens: never scroll, zoom, select or long-press menu. */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+/* The specular rim: a gradient border, bright along the top, faint round the bottom. */
+.glass-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    180deg,
+    var(--glass-rim-top),
+    transparent 38%,
+    transparent 62%,
+    var(--glass-rim-low)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+.glass-in {
+  position: relative;
+  display: grid;
+  height: 100%;
+  padding: 0 4px;
+}
+/* The lens behind the current tab. Its transform and width are set from script. */
+.glass-lens {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  border-radius: 999px;
+  background: var(--glass-lens);
+  box-shadow: inset 0 1px 0 var(--glass-rim-low);
+  transform-origin: center;
+  will-change: transform;
+  pointer-events: none;
+}
+/* Settling on a tab: a spring with a slight overshoot. */
+.glass-lens[data-motion='spring'] {
+  transition:
+    transform 0.5s cubic-bezier(0.34, 1.45, 0.64, 1),
+    width 0.5s cubic-bezier(0.34, 1.45, 0.64, 1),
+    background-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+/* Held or dragged: it follows the finger closely and turns to brighter, raised glass. */
+.glass-lens[data-motion='follow'] {
+  transition:
+    transform 0.1s cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+  background: var(--glass-lens-held);
+  box-shadow:
+    inset 0 1px 0 var(--glass-rim-top),
+    inset 0 -1px 0 var(--glass-rim-low),
+    0 0 0 0.5px var(--glass-edge),
+    0 4px 14px rgb(0 0 0 / 0.14);
+}
+.glass-tab {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--glass-label);
+  text-decoration: none;
+  -webkit-user-drag: none;
+}
+/* The current tab, or the one under the lens mid-drag. */
+.glass-tab[data-lit] {
+  color: var(--accent);
+}
+.glass-tab:focus-visible {
+  outline-offset: -3px;
+  border-radius: 999px;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass-bar {
+    background: var(--glass-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+.fab {
+  position: fixed;
+  right: 18px;
+  bottom: calc(var(--tabbar-clear) + 14px);
+  z-index: 30;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.3);
+}
+
+@media (min-width: 768px) {
+  .shell {
+    padding-top: var(--safe-top);
+    padding-left: 240px;
+  }
+  .appbar,
+  .glass-bar,
+  .fab {
+    display: none;
+  }
+  .main {
+    padding: 24px 32px 48px;
+  }
+  .side {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 30;
+    width: 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: calc(20px + var(--safe-top)) 12px 20px;
+    border-right: 1px solid var(--line);
+    background: var(--surface2);
+  }
+  .side .brand {
+    padding: 0 10px 18px;
+  }
+  .side .btn.primary {
+    margin: 0 4px 14px;
+  }
+  .side nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .side nav a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 999px;
+    color: var(--ink2);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .side nav a:hover {
+      background: color-mix(in srgb, var(--line) 60%, transparent);
+    }
+  }
+  /* The current page: a solid pill, so it stands out from the sidebar in light and dark. */
+  .side nav a[aria-current='page'] {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  .side-about {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ink2);
+    font-weight: 600;
+    font-size: 14px;
+    text-align: left;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .side-about:hover {
+      background: color-mix(in srgb, var(--line) 60%, transparent);
+    }
+  }
+  .about-m {
+    display: none;
+  }
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 24px;
+}
+.logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.page-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 2px 16px;
+}
+.page-h h1,
+.page-t {
+  font-size: 30px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.page-h h1 svg,
+.page-t svg {
+  color: var(--accent);
+}
+
+/* ---------- surfaces & text ---------- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: var(--sh);
+}
+.card.flat {
+  box-shadow: none;
+}
+.card h3 {
+  font-size: 18px;
+}
+.sec {
+  margin-top: 26px;
+}
+.sec-h {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 2px 12px;
+}
+.sec-h h2 {
+  font-size: 21px;
+}
+.more {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+}
+.sub {
+  color: var(--ink2);
+  font-size: 13px;
+}
+.hero {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, var(--accent-soft), var(--surface));
+}
+.hero h1 {
+  font-size: 30px;
+}
+.acts {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+.stat .v {
+  font-size: 28px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.stat .l {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink2);
+  margin-top: 4px;
+}
+.stat .d {
+  font-size: 12px;
+  color: var(--ink2);
+  margin-top: 2px;
+}
+
+/* ---------- controls ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 13px;
+  padding: 10px 18px;
+  font-weight: 650;
+  font-size: 15px;
+  min-height: 44px;
+  text-decoration: none;
+}
+.btn:active {
+  transform: scale(0.98);
+}
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.btn.danger {
+  color: var(--bad);
+}
+.btn.ghost {
+  background: transparent;
+  border-color: transparent;
+}
+.btn.sm {
+  padding: 6px 13px;
+  min-height: 34px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+.btn[disabled] {
+  opacity: 0.5;
+}
+.seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 8px 15px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink2);
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.chip.sm {
+  padding: 4px 11px;
+  min-height: 30px;
+  font-size: 13px;
+}
+.chip[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.chip .x {
+  opacity: 0.7;
+}
+.in {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 12px;
+  padding: 10px 12px;
+  min-height: 44px;
+}
+.in:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+textarea.in {
+  min-height: 72px;
+  resize: vertical;
+}
+.lbl {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink2);
+  margin: 0 0 7px;
+}
+.fg {
+  margin-bottom: 18px;
+}
+.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.three {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+.step {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+.step .in {
+  text-align: center;
+  font-weight: 650;
+}
+.step button {
+  width: 44px;
+  flex: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 12px;
+  font-size: 20px;
+  font-weight: 600;
+}
+.step.compact {
+  max-width: 220px;
+}
+.step.compact .in {
+  min-width: 0;
+}
+/* "New" chip: dashed to read as an action, not a value. */
+.chip.new {
+  border-style: dashed;
+  background: transparent;
+}
+.chip.new svg {
+  margin-left: -3px;
+}
+.chip-in {
+  min-height: 38px;
+  border-radius: 999px;
+  padding: 6px 15px;
+  border-style: dashed;
+}
+
+/* Styled dropdown (Select in ui.tsx). */
+.sel {
+  position: relative;
+}
+.sel-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-right: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.sel-btn.ph {
+  color: var(--ink2);
+}
+.sel-btn svg {
+  flex: none;
+  color: var(--ink2);
+  transition: transform 0.15s ease;
+}
+.sel-btn[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+.sel-val {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sel-list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--sh);
+  padding: 6px;
+}
+.sel-list > div + div {
+  border-top: 1px solid var(--line);
+  margin-top: 6px;
+  padding-top: 6px;
+}
+.sel-grp {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink2);
+  padding: 6px 10px 4px;
+}
+.sel-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+}
+.sel-opt.hi {
+  background: var(--surface2);
+}
+.sel-opt[aria-selected='true'] {
+  color: var(--accent);
+  font-weight: 600;
+}
+.ratio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ratio .big {
+  font-size: 22px;
+}
+.search {
+  max-width: 320px;
+}
+.flexrow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.hscroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+.hscroll::-webkit-scrollbar {
+  display: none;
+}
+.err {
+  color: var(--bad);
+  font-size: 14px;
+}
+
+/* ---------- beans, brews ---------- */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 14px;
+}
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
+  gap: 14px;
+}
+.bean {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition:
+    transform 0.12s,
+    border-color 0.15s;
+}
+@media (hover: hover) and (pointer: fine) {
+  .bean:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+  }
+}
+.hd {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.flag {
+  font-size: 26px;
+  line-height: 1;
+  min-width: 30px;
+}
+.thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex: none;
+  background: var(--surface2);
+}
+.logo-img {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid var(--line);
+  flex: none;
+}
+.bn {
+  font-weight: 650;
+  font-size: 16px;
+  line-height: 1.25;
+}
+.rn {
+  color: var(--ink2);
+  font-size: 13px;
+}
+.ml {
+  margin-left: auto;
+}
+.bar {
+  height: 8px;
+  border-radius: 99px;
+  background: var(--surface2);
+  overflow: hidden;
+}
+.bar > i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+}
+.meta {
+  font-size: 13px;
+  color: var(--ink2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tag {
+  background: var(--surface2);
+  color: var(--ink2);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.tag.acc {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.tag.good {
+  background: var(--good-soft);
+  color: var(--good);
+}
+.tag.warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.tag.bad {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+.tag.blue {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+.rb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 38px;
+  padding: 0 6px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.rb.big {
+  min-width: 64px;
+  height: 64px;
+  font-size: 30px;
+  border-radius: 18px;
+}
+.rb-none {
+  border: 1.5px dashed var(--line);
+  color: var(--ink2);
+}
+.rb-low {
+  background: var(--surface2);
+  color: var(--ink2);
+}
+.rb-mid {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.rb-high {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.rb-top {
+  background: var(--good);
+  color: var(--surface);
+}
+.ri {
+  border-top: 1px solid var(--line);
+}
+.ri:first-child {
+  border-top: 0;
+}
+.rm {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 12px 2px;
+  text-align: left;
+}
+.mid {
+  flex: 1;
+  min-width: 0;
+}
+.t1 {
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.t1 span {
+  font-weight: 500;
+  color: var(--ink2);
+}
+.t2 {
+  font-size: 13px;
+  color: var(--ink2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rt {
+  font-size: 12px;
+  color: var(--ink2);
+  text-align: right;
+  flex: none;
+}
+.rd {
+  padding: 2px 2px 16px 52px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+@media (max-width: 600px) {
+  .rd {
+    padding-left: 2px;
+  }
+}
+.callout {
+  background: var(--accent-soft);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+.callout b {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+.dayh {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink2);
+  margin: 20px 2px 6px;
+}
+.empty {
+  text-align: center;
+  color: var(--ink2);
+  padding: 34px 12px;
+}
+.photos {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.photo {
+  position: relative;
+  flex: none;
+}
+.photo img {
+  height: 180px;
+  width: auto;
+  max-width: 320px;
+  border-radius: 14px;
+  object-fit: cover;
+  display: block;
+  background: var(--surface2);
+}
+.photo button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  border: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.add-photo {
+  flex: none;
+  height: 180px;
+  width: 130px;
+  border: 1.5px dashed var(--line);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--ink2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* ---------- charts ---------- */
+
+.rank {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+.rk.click {
+  cursor: pointer;
+}
+.rk-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+.rk-l {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rk-v {
+  color: var(--ink2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.rk-s {
+  font-size: 12px;
+  color: var(--ink2);
+  margin-top: 3px;
+}
+.chart text {
+  fill: var(--ink2);
+  font-size: 11px;
+  font-family: var(--sans);
+}
+.chart .ax {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.chart .gl {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+  opacity: 0.7;
+}
+.chart .vl {
+  fill: var(--ink);
+  font-weight: 600;
+}
+.bar-a {
+  fill: var(--accent);
+}
+.bar-s {
+  fill: var(--accent);
+  opacity: 0.35;
+}
+.bar-good {
+  fill: var(--good);
+}
+.bar-warn {
+  fill: var(--warn);
+}
+.bar-bad {
+  fill: var(--bad);
+}
+.bar-blue {
+  fill: var(--blue);
+}
+.dot-a {
+  fill: var(--accent);
+  opacity: 0.7;
+}
+.dot-good {
+  fill: var(--good);
+  opacity: 0.8;
+}
+.dot-warn {
+  fill: var(--warn);
+  opacity: 0.85;
+}
+.dot-bad {
+  fill: var(--bad);
+  opacity: 0.8;
+}
+.dot-blue {
+  fill: var(--blue);
+  opacity: 0.8;
+}
+.h0 {
+  fill: var(--surface2);
+}
+.h1 {
+  fill: var(--accent);
+  opacity: 0.35;
+}
+.h2 {
+  fill: var(--accent);
+  opacity: 0.6;
+}
+.h3 {
+  fill: var(--accent);
+  opacity: 0.82;
+}
+.h4 {
+  fill: var(--accent);
+}
+.legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--ink2);
+  margin-top: 8px;
+}
+.legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+.lg-good {
+  background: var(--good);
+}
+.lg-warn {
+  background: var(--warn);
+}
+.lg-bad {
+  background: var(--bad);
+}
+.lg-blue {
+  background: var(--blue);
+}
+.lg-a {
+  background: var(--accent);
+}
+.hint {
+  font-size: 13px;
+  color: var(--ink2);
+  margin-top: 10px;
+}
+
+/* ---------- sheets ---------- */
+
+.ov {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  animation: fade 0.15s;
+}
+.sheet {
+  position: relative;
+  background: var(--bg);
+  width: 100%;
+  max-width: 660px;
+  /* Never under the phone's status bar and the browser's blurred top bar: keep the sheet's
+     top below the safe area plus a margin. */
+  max-height: calc(100dvh - var(--safe-top) - var(--sheet-gap));
+  display: flex;
+  flex-direction: column;
+  border-radius: 22px 22px 0 0;
+  padding-bottom: var(--safe-bottom);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25);
+  animation: rise 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.sheet.expanded {
+  height: calc(100dvh - var(--safe-top) - var(--sheet-gap));
+}
+.sh-grab {
+  flex: none;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+.handle {
+  width: 38px;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--line);
+  margin: 10px auto 4px;
+}
+.sh-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 22px 8px;
+}
+.sh-head h2 {
+  font-size: 24px;
+}
+.xbtn {
+  border: 0;
+  background: var(--surface2);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.sh-body {
+  padding: 8px 22px 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  flex: 1;
+  min-height: 0;
+}
+.sh-foot {
+  flex: none;
+  padding: 12px 22px 14px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  align-items: center;
+}
+.sh-foot .btn.primary {
+  flex: 1;
+  max-width: 260px;
+}
+.sh-foot .left {
+  margin-right: auto;
+}
+@media (min-width: 640px) {
+  .ov {
+    align-items: center;
+    padding: calc(24px + var(--safe-top)) 24px 24px;
+  }
+  .sheet {
+    border-radius: 24px;
+    max-height: calc(100dvh - var(--safe-top) - 48px);
+    padding-bottom: 0;
+  }
+  .handle {
+    visibility: hidden;
+    margin-top: 4px;
+  }
+}
+
+/* ---------- toast ---------- */
+
+.toast-wrap {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--tabbar-clear) + 88px);
+  z-index: 80;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  background: var(--ink);
+  color: var(--bg);
+  padding: 11px 16px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-weight: 600;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  animation: rise 0.2s;
+  max-width: 560px;
+}
+.toast.bad {
+  background: var(--bad);
+  color: #fff;
+}
+.toast button {
+  border: 0;
+  background: rgb(255 255 255 / 0.18);
+  color: inherit;
+  border-radius: 9px;
+  padding: 5px 11px;
+  font-weight: 700;
+}
+@media (min-width: 768px) {
+  .toast-wrap {
+    bottom: 24px;
+    left: 240px;
+  }
+}
+
+/* ---------- login ---------- */
+
+.center {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.login {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.login h1 {
+  font-size: 32px;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes rise {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.link-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 0;
+  border-top: 1px solid var(--line);
+  color: var(--ink);
+  text-decoration: none;
+}
+.link-row svg:first-child {
+  color: var(--accent);
+  flex: none;
+}
+.link-row span {
+  flex: 1;
+  text-underline-offset: 4px;
+}
+.link-row:focus-visible span {
+  text-decoration: underline;
+}
+@media (hover: hover) and (pointer: fine) {
+  .link-row:hover span {
+    text-decoration: underline;
+  }
+}
+.link-row svg:last-child {
+  color: var(--ink2);
+  flex: none;
+}
+
+/* ---------- arrangeable panels (Insights) ---------- */
+
+.pn-wrap {
+  /* Named: each panel is a container too, so board-width rules must say which they mean. */
+  container: pn-board / inline-size;
+}
+.pn-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-flow: row dense;
+  gap: 14px;
+}
+@container pn-board (min-width: 680px) {
+  .pn-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .pn[data-size='full'] {
+    grid-column: 1 / -1;
+  }
+}
+.pn {
+  min-width: 0;
+}
+.pn-h {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: -4px -6px 12px -8px;
+}
+.pn-t {
+  flex: 1;
+  min-width: 0;
+  padding-top: 4px;
+}
+.pn-t .sub {
+  margin-top: 2px;
+}
+.pn-grip,
+.pn-tool {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink2);
+}
+.pn-grip {
+  cursor: grab;
+  touch-action: none;
+  opacity: 0.7;
+}
+.pn-grip:active {
+  cursor: grabbing;
+}
+@media (hover: hover) and (pointer: fine) {
+  .pn-tool:hover,
+  .pn-grip:hover {
+    background: var(--surface2);
+    opacity: 1;
+  }
+}
+.pn-tools {
+  display: flex;
+  gap: 2px;
+}
+/* Width has no effect in one column, so the toggle hides there. */
+.pn-size {
+  display: none;
+}
+@container pn-board (min-width: 680px) {
+  .pn-size {
+    display: inline-flex;
+  }
+}
+.pn-ph {
+  opacity: 0.35;
+  box-shadow: none;
+  border-style: dashed;
+}
+.pn-overlay {
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.08),
+    0 18px 40px rgba(0, 0, 0, 0.18);
+  cursor: grabbing;
+}
+.pn .stat {
+  background: var(--surface2);
+  border-color: transparent;
+}
+.pn .stats {
+  margin-top: 0;
+}
+.pn-hidden {
+  margin-top: 22px;
+}
+.pn-hidden summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--ink2);
+  font-weight: 600;
+  font-size: 14px;
+  margin: 0 2px 10px;
+}
+.pn-hid-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+}
+.pn-hid-row + .pn-hid-row {
+  border-top: 1px solid var(--line);
+}
+.pn-hid-row span {
+  font-weight: 600;
+}
+
+/* "Try asking" examples in Settings: tap a row to copy it. */
+.try-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.try-list li + li {
+  border-top: 1px solid var(--line);
+}
+.try-list button {
+  display: block;
+  width: 100%;
+  padding: 10px 2px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: var(--ink);
+  font-size: 15px;
+  cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) {
+  .try-list button:hover {
+    color: var(--accent);
+  }
+}
+
+/* On/off switch. */
+.switch {
+  position: relative;
+  flex: none;
+  width: 40px;
+  height: 24px;
+  border: 0;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--line);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.switch span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  transition: transform 0.15s;
+}
+.switch.on {
+  background: var(--accent);
+}
+.switch.on span {
+  transform: translateX(16px);
+}
+.switch[disabled] {
+  opacity: 0.4;
+}
+
+/* "i" button with a popover of detail. */
+/* The popover lines up with the nearest positioned row (.sec-h, .upd-row), not the icon,
+   so an icon mid-row doesn't push it off the screen. */
+.infotip {
+  display: inline-flex;
+  vertical-align: middle;
+}
+.sec-h,
+.upd-row {
+  position: relative;
+}
+.infotip > button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink2);
+  cursor: pointer;
+}
+.infotip > button.on {
+  color: var(--accent);
+}
+@media (hover: hover) and (pointer: fine) {
+  .infotip > button:hover {
+    color: var(--accent);
+  }
+}
+.infotip-pop {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 40;
+  padding-top: 8px;
+}
+.infotip-pop > span {
+  display: block;
+  width: min(22rem, calc(100vw - 2.5rem));
+  max-height: 55vh;
+  overflow-y: auto;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--ink2);
+  font-size: 13.5px;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.15);
+}
+.infotip-pop p {
+  margin: 0 0 8px;
+}
+.infotip-pop ul {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+.infotip-pop :last-child {
+  margin-bottom: 0;
+}
+
+/* Settings → Notifications' "Install on your phone" scrolls here: clear the phone app bar. */
+.sec[id] {
+  scroll-margin-top: calc(var(--safe-top) + 64px);
+}
+@media (min-width: 768px) {
+  .sec[id] {
+    scroll-margin-top: 16px;
+  }
+}
+
+/* Settings → Updates. */
+.upd-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.upd-row .grow {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.upd-repo {
+  font-size: 13px;
+  color: var(--ink2);
+}
+
+/* A heading that folds a block open and closed (Settings → Example prompts). */
+.fold {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.fold-chev {
+  display: inline-flex;
+  color: var(--ink2);
+  transform: rotate(-90deg);
+  transition: transform 0.15s;
+}
+.fold-chev.open {
+  transform: none;
+}
+
+/* ---------- sliding toggle, filter button, filters drawer ---------- */
+
+.slide {
+  position: relative;
+  display: grid;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  isolation: isolate;
+  /* Too many options for the width: scroll sideways, no scrollbar. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.slide::-webkit-scrollbar {
+  display: none;
+}
+/* Sized to its options instead of the full width. */
+.slide.fit {
+  width: fit-content;
+  max-width: 100%;
+}
+.slide-thumb {
+  position: absolute;
+  z-index: -1;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(40, 20, 6, 0.16);
+  transition:
+    transform 0.22s cubic-bezier(0.3, 0.7, 0.2, 1),
+    width 0.22s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+.slide button {
+  border: 0;
+  background: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink2);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.slide button[aria-selected='true'] {
+  color: var(--accent);
+}
+/* A chosen option with a tone: its label takes the tone's ink (the thumb's fill is below). */
+.slide button.t-good[aria-selected='true'] {
+  color: var(--good-ink);
+}
+.slide button.t-warn[aria-selected='true'] {
+  color: var(--warn-ink);
+}
+.slide button.t-bad[aria-selected='true'] {
+  color: var(--bad-ink);
+}
+.slide button.t-blue[aria-selected='true'] {
+  color: var(--blue-ink);
+}
+.slide .n {
+  font-weight: 500;
+  opacity: 0.75;
+}
+.filter-btn {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink2);
+  display: grid;
+  place-items: center;
+}
+.filter-btn.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.filter-btn .badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+.searchrow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.searchrow .search {
+  max-width: none;
+  flex: 1;
+  min-width: 0;
+}
+@media (min-width: 768px) {
+  .searchrow .search {
+    max-width: 420px;
+    flex: 0 1 420px;
+  }
+}
+.listmeta {
+  margin-top: 12px;
+}
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-bottom: 4px;
+}
+.fgroup .lbl {
+  margin-bottom: 8px;
+}
+.viewswitch {
+  margin-bottom: 14px;
+  max-width: 360px;
+}
+.in.when {
+  max-width: 280px;
+}
+/* Dark: the thumb sits lighter than its track, so it reads as raised. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .slide-thumb {
+    background: #4a3727;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  }
+}
+:root[data-theme='dark'] .slide-thumb {
+  background: #4a3727;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+/* A chosen option with a tone: the thumb takes the tone's soft fill, in light and dark. */
+.slide > .slide-thumb.t-good {
+  background: var(--good-soft);
+}
+.slide > .slide-thumb.t-warn {
+  background: var(--warn-soft);
+}
+.slide > .slide-thumb.t-bad {
+  background: var(--bad-soft);
+}
+.slide > .slide-thumb.t-blue {
+  background: var(--blue-soft);
+}
+/* A chart drawn at its real width (charts.tsx measures it). */
+.chart-box {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+.chart-box > svg {
+  display: block;
+}
+/* Panels size their insides to their own width (half, full or a phone), not the screen. */
+.pn {
+  container-type: inline-size;
+}
+.pn .stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@container (min-width: 520px) {
+  .pn .stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@container (min-width: 900px) {
+  .pn .stats {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+/* ---------- Insights polish ----------
+   Style only, scoped to the Insights board (.pn-wrap), except the tiles, which Home shares.
+   Tiles: label above the number. Bars: pastel fill with an outline; this week (still in
+   progress) dashed. Ranked rows: a slim share track along the bottom. Panels are targeted
+   by data-panel. Every colour mixes this file's theme tokens, so dark mode follows. */
+.pn-wrap {
+  --i-soft: color-mix(in srgb, var(--surface2) 55%, var(--surface));
+  --i-track: color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+/* ---- panel shell: quieter header, a little more air ---- */
+.pn-wrap .card.pn {
+  border-radius: 18px;
+  padding: 18px 20px 20px;
+  box-shadow:
+    0 1px 2px rgba(60, 32, 12, 0.04),
+    0 1px 1px rgba(60, 32, 12, 0.02);
+}
+.pn-wrap .pn-t h3 {
+  font-size: 17px;
+  letter-spacing: -0.01em;
+}
+.pn-wrap .pn-t .sub {
+  font-size: 12.5px;
+  color: var(--ink2);
+}
+.pn-wrap .pn-grip,
+.pn-wrap .pn-tool {
+  opacity: 0.45;
+}
+@media (hover: hover) and (pointer: fine) {
+  .pn-wrap .pn:hover .pn-grip,
+  .pn-wrap .pn:hover .pn-tool {
+    opacity: 0.8;
+  }
+}
+
+/* ---- KPI tiles (Home and Insights): label on top, big serif number, quiet sub-line ---- */
+.stats {
+  gap: 10px;
+}
+.stats .stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 14px;
+  padding: 12px 14px 13px;
+}
+.stats .stat .l {
+  order: -1;
+  margin: 0 0 4px;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink2);
+}
+.stats .stat .v {
+  font-size: 30px;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.stats .stat .d {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--ink2);
+  opacity: 0.85;
+}
+
+/* ---- calendar heatmap: paler empty days, classed tiers of one hue ---- */
+.pn-wrap .chart .h0 {
+  fill: var(--i-soft);
+}
+.pn-wrap .chart .h1 {
+  fill: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  opacity: 1;
+}
+.pn-wrap .chart .h2 {
+  fill: color-mix(in srgb, var(--accent) 45%, var(--surface));
+  opacity: 1;
+}
+.pn-wrap .chart .h3 {
+  fill: color-mix(in srgb, var(--accent) 72%, var(--surface));
+  opacity: 1;
+}
+.pn-wrap .chart .h4 {
+  fill: var(--accent);
+}
+.pn-wrap .chart rect[class^='h'] {
+  rx: 4px;
+}
+
+/* ---- axes and labels: hairline baseline, muted small text ---- */
+.pn-wrap .chart text {
+  font-size: 10.5px;
+  fill: var(--ink2);
+}
+.pn-wrap .chart .ax {
+  stroke: var(--i-track);
+}
+.pn-wrap .chart .gl {
+  stroke: var(--i-track);
+  stroke-dasharray: none;
+  opacity: 0.6;
+}
+.pn-wrap .chart .vl {
+  fill: var(--ink2);
+  font-weight: 500;
+  font-size: 10.5px;
+}
+
+/* ---- bars: pastel fill with a solid outline; the unfinished week dashed ---- */
+.pn-wrap .chart [class^='bar-'] {
+  stroke-width: 1.25px;
+  rx: 5px;
+}
+.pn-wrap .chart .bar-a,
+.pn-wrap .chart .bar-s {
+  fill: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  stroke: var(--accent);
+  opacity: 1;
+}
+.pn-wrap .chart .bar-good {
+  fill: color-mix(in srgb, var(--good) 24%, var(--surface));
+  stroke: var(--good);
+}
+.pn-wrap .chart .bar-warn {
+  fill: color-mix(in srgb, var(--warn) 24%, var(--surface));
+  stroke: var(--warn);
+}
+.pn-wrap .chart .bar-bad {
+  fill: color-mix(in srgb, var(--bad) 24%, var(--surface));
+  stroke: var(--bad);
+}
+.pn-wrap .chart .bar-blue {
+  fill: color-mix(in srgb, var(--blue) 24%, var(--surface));
+  stroke: var(--blue);
+}
+/* "Brews per week": past weeks are .bar-s, this week .bar-a (unfinished): dashed. */
+.pn-wrap .chart .bar-a {
+  stroke-dasharray: 3 2.5;
+  fill: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+/* Bars that aren't time series (rating distribution) use .bar-a too: keep them solid there. */
+.pn-wrap [data-panel='ratings'] .chart .bar-a {
+  stroke-dasharray: none;
+  fill: color-mix(in srgb, var(--accent) 22%, var(--surface));
+}
+
+/* ---- stacked months: separated segments ---- */
+.pn-wrap [data-panel='dialin'] .chart [class^='bar-'] {
+  stroke: var(--surface);
+  stroke-width: 2px;
+  rx: 4px;
+  fill-opacity: 0.9;
+}
+.pn-wrap [data-panel='dialin'] .chart .bar-good {
+  fill: var(--good);
+}
+.pn-wrap [data-panel='dialin'] .chart .bar-warn {
+  fill: var(--warn);
+}
+.pn-wrap [data-panel='dialin'] .chart .bar-bad {
+  fill: var(--bad);
+}
+.pn-wrap [data-panel='dialin'] .chart .bar-blue {
+  fill: var(--blue);
+}
+
+/* ---- scatter: ringed dots so overlaps separate ---- */
+.pn-wrap .chart circle[class^='dot-'] {
+  stroke: var(--surface);
+  stroke-width: 1.5px;
+  opacity: 0.85;
+}
+
+/* ---- legend: small rounded squares ---- */
+.pn-wrap .legend {
+  gap: 16px;
+  font-size: 12px;
+  margin-top: 10px;
+}
+.pn-wrap .legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2.5px;
+}
+
+/* ---- ranked lists: name + value, sub-line, slim 4px share track along the bottom ---- */
+.pn-wrap .rank {
+  gap: 2px;
+}
+.pn-wrap .rk {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px 9px;
+  margin: 0 -10px;
+  border-radius: 10px;
+  transition: background 0.12s;
+}
+@media (hover: hover) and (pointer: fine) {
+  .pn-wrap .rk:hover {
+    background: var(--i-soft);
+  }
+}
+.pn-wrap .rk-top {
+  margin-bottom: 0;
+  font-size: 14px;
+}
+.pn-wrap .rk-l {
+  font-weight: 500;
+}
+.pn-wrap .rk-v {
+  font-size: 13px;
+}
+.pn-wrap .rk-s {
+  order: 1;
+  margin-top: 1px;
+}
+.pn-wrap .rk .bar {
+  order: 2;
+  height: 4px;
+  margin-top: 7px;
+  background: var(--i-track);
+}
+.pn-wrap .rk .bar > i {
+  opacity: 0.8;
+}
+@media (hover: hover) and (pointer: fine) {
+  .pn-wrap .rk:hover .bar > i {
+    opacity: 1;
+  }
+}
+
+/* ---- list rows (Order again, Recipe book): hairlines, hover fill ---- */
+.pn-wrap .ri {
+  border-top-color: var(--i-track);
+}
+.pn-wrap .ri .rm {
+  border-radius: 12px;
+  margin: 0 -10px;
+  padding-left: 10px;
+  padding-right: 10px;
+  width: calc(100% + 20px);
+}
+@media (hover: hover) and (pointer: fine) {
+  .pn-wrap .ri .rm:hover {
+    background: var(--i-soft);
+  }
+}
+.pn-wrap .rb {
+  min-width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 15px;
+}
+.pn-wrap .tag {
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 2px 9px;
+}
+
+/* ---- hint / empty ---- */
+.pn-wrap .hint {
+  font-size: 12.5px;
+  color: var(--ink2);
+}
