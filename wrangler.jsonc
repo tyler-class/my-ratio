@@ -26,22 +26,22 @@
   "d1_databases": [
     {
       // No database_id: the Deploy button and `wrangler deploy` provision it automatically.
-      "binding": "DB",
+      "binding": "DB", "database_id": "66273234-0edb-4812-8506-6cde2fe8ee3d",
       "database_name": "my-ratio",
-      "migrations_dir": "migrations","database_id": "66273234-0edb-4812-8506-6cde2fe8ee3d",
+      "migrations_dir": "migrations",
     },
   ],
   "r2_buckets": [
     {
       // Bean photos and roaster logos. Created on first deploy if it doesn't exist.
       "binding": "IMAGES",
-      "bucket_name": "my-ratio-images","preview_bucket_name": "my-ratio-images",
+      "bucket_name": "my-ratio-images",
     },
   ],
   "kv_namespaces": [
     {
       // Sign-ins for AI assistants connected over MCP. Provisioned automatically on deploy.
-      "binding": "OAUTH_KV","id": "6da2cdc7068f479d8ba9d4a94d92d70b",
+      "binding": "OAUTH_KV", "id": "6da2cdc7068f479d8ba9d4a94d92d70b",
     },
   ],
 }
