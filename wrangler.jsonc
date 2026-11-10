@@ -35,7 +35,7 @@
     {
       // Bean photos and roaster logos. Created on first deploy if it doesn't exist.
       "binding": "IMAGES",
-      "bucket_name": "my-ratio-images",
+      "bucket_name": "ratio-images",
     },
   ],
   "kv_namespaces": [
