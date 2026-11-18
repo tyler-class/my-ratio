@@ -1,6 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { fmtN } from '@shared/logic/units';
 import type { Tone } from '@shared/lookups';
+import { useFolded } from '../lib/view';
 import { Icon, type IconName } from './Icon';
 
 export function cx(...c: (string | false | null | undefined)[]) {
@@ -660,4 +661,160 @@ export function FilterGroup({ title, children }: { title: string; children: Reac
       {children}
     </section>
   );
+}
+
+/**
+ * A section that folds open and shut: the whole header row toggles it, the chevron turns
+ * over, and the body slides. Whether it is open is remembered on this device.
+ */
+export function Fold({
+  id,
+  title,
+  icon,
+  className,
+  children,
+}: {
+  id: string;
+  title: ReactNode;
+  icon?: IconName;
+  className?: string;
+  children: ReactNode;
+}) {
+  const [open, toggle] = useFolded(id);
+  const bodyId = useId();
+  return (
+    <div className={cx('fold', open && 'open', className)}>
+      <button
+        type="button"
+        className="fold-h"
+        aria-expanded={open}
+        aria-controls={bodyId}
+        onClick={toggle}
+      >
+        {icon && <Icon name={icon} size={16} />}
+        <span className="fold-t">{title}</span>
+        <Icon name="chevDown" size={16} className="fold-chev" />
+      </button>
+      <div className="fold-b" id={bodyId} inert={!open}>
+        <div>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/** Nothing to show: an icon in a soft circle, a headline and one line. */
+export function Empty({
+  icon,
+  title,
+  children,
+  className,
+}: {
+  icon: IconName;
+  title: string;
+  children?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cx('empty', className)}>
+      <span className="empty-ic">
+        <Icon name={icon} size={22} />
+      </span>
+      <div className="empty-t">{title}</div>
+      {children ? <div className="empty-l">{children}</div> : null}
+    </div>
+  );
+}
+
+/**
+ * A row of tags that shows the first few and folds the rest into a "+N" pill. The pill shows
+ * them in a pop-out: while a mouse hovers it, or after a tap until you tap elsewhere.
+ */
+export function TagRow({
+  tags,
+  max = 3,
+  tone = 'acc',
+}: {
+  tags: string[];
+  max?: number;
+  tone?: string;
+}) {
+  const [pinned, setPinned] = useState(false);
+  const [hover, setHover] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+  const id = useId();
+  const open = pinned || hover;
+  useEffect(() => {
+    if (!open) return;
+    const close = () => {
+      setPinned(false);
+      setHover(false);
+    };
+    const away = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) close();
+    };
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('pointerdown', away);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+  // One extra would take the pill's own room: show it instead.
+  const cut = tags.length > max + 1 ? max : tags.length;
+  const rest = tags.slice(cut);
+  return (
+    <div className="tags">
+      {tags.slice(0, cut).map((t) => (
+        <span className={cx('tag', tone)} key={t}>
+          {t}
+        </span>
+      ))}
+      {rest.length > 0 && (
+        <span
+          ref={ref}
+          className="tag-more"
+          onPointerEnter={(e) => e.pointerType === 'mouse' && setHover(true)}
+          onPointerLeave={(e) => e.pointerType === 'mouse' && setHover(false)}
+          // Inside a tappable card: the pill opens its pop-out, not the card.
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            className="tag"
+            aria-label={`${rest.length} more: ${rest.join(', ')}`}
+            aria-expanded={open}
+            aria-controls={id}
+            onClick={() => setPinned((p) => !p)}
+          >
+            +{rest.length}
+          </button>
+          {open && (
+            <span id={id} role="note" className="tag-pop">
+              <span className="tags">
+                {rest.map((t) => (
+                  <span className={cx('tag', tone)} key={t}>
+                    {t}
+                  </span>
+                ))}
+              </span>
+            </span>
+          )}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** A notes field that grows with its text instead of needing a manual resize. */
+export function NotesField(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || CSS.supports('field-sizing', 'content')) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight + 2}px`;
+  }, [props.value]);
+  return <textarea ref={ref} {...props} className={cx('in', props.className)} />;
 }

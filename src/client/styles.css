@@ -508,13 +508,25 @@ h3,
 }
 .sec-h {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin: 0 2px 12px;
 }
 .sec-h h2 {
   font-size: 21px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sec-h h2 svg,
+.pn-t h3 svg {
+  color: var(--accent);
+}
+.pn-t h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
 }
 .more {
   border: 0;
@@ -633,7 +645,13 @@ h3,
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+/* In a sideways scroller a single line is the point. */
+.hscroll .chip {
   white-space: nowrap;
+  flex: none;
 }
 .chip.sm {
   padding: 4px 11px;
@@ -661,9 +679,12 @@ h3,
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+/* Notes fields grow with their text (NotesField sizes them where field-sizing is missing). */
 textarea.in {
   min-height: 72px;
-  resize: vertical;
+  max-height: 60vh;
+  resize: none;
+  field-sizing: content;
 }
 .lbl {
   display: block;
@@ -1013,9 +1034,7 @@ textarea.in {
 }
 .t1 {
   font-weight: 650;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 .t1 span {
   font-weight: 500;
@@ -1024,9 +1043,7 @@ textarea.in {
 .t2 {
   font-size: 13px;
   color: var(--ink2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 .rt {
   font-size: 12px;
@@ -1068,9 +1085,40 @@ textarea.in {
   margin: 20px 2px 6px;
 }
 .empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   text-align: center;
   color: var(--ink2);
-  padding: 34px 12px;
+  padding: 30px 12px;
+}
+.empty-ic {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.empty-t {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--ink);
+}
+.empty-l {
+  font-size: 14px;
+  max-width: 34em;
+}
+.empty .btn {
+  margin-top: 12px;
+}
+/* Inside an Insights panel: a little tighter. */
+.pn .empty {
+  padding: 18px 8px;
 }
 .photos {
   display: flex;
@@ -1541,7 +1589,11 @@ textarea.in {
 }
 .pn-grip {
   cursor: grab;
-  touch-action: none;
+  /* On touch the drag starts after a short press, so a swipe here still scrolls. */
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   opacity: 0.7;
 }
 .pn-grip:active {
@@ -1588,15 +1640,9 @@ textarea.in {
 .pn-hidden {
   margin-top: 22px;
 }
-.pn-hidden summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
+.pn-hidden .fold-h {
   color: var(--ink2);
-  font-weight: 600;
   font-size: 14px;
-  margin: 0 2px 10px;
 }
 .pn-hid-row {
   display: flex;
@@ -1764,29 +1810,89 @@ textarea.in {
   color: var(--ink2);
 }
 
-/* A heading that folds a block open and closed (Settings → Example prompts). */
-.fold {
-  display: inline-flex;
+/* A section that folds open and shut (Fold in ui.tsx): the whole header row toggles it, the
+   chevron turns over (down when shut, up when open) and the body slides. */
+.fold-h {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 16px;
-  padding: 0;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 2px;
   border: 0;
   background: none;
   color: var(--ink);
   font: inherit;
   font-size: 16px;
   font-weight: 600;
+  text-align: left;
   cursor: pointer;
 }
-.fold-chev {
-  display: inline-flex;
-  color: var(--ink2);
-  transform: rotate(-90deg);
-  transition: transform 0.15s;
+.fold-t {
+  flex: 1;
+  min-width: 0;
 }
-.fold-chev.open {
-  transform: none;
+.fold-chev {
+  color: var(--ink2);
+  transition: transform 0.22s ease;
+}
+.fold.open .fold-chev {
+  transform: rotate(180deg);
+}
+.fold-b {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.22s ease;
+}
+.fold-b > div {
+  min-height: 0;
+  overflow: hidden;
+}
+.fold.open .fold-b {
+  grid-template-rows: 1fr;
+}
+.examples {
+  margin-top: 10px;
+}
+
+/* "+N" tags: the rest in a small pop-out. */
+.tag-more {
+  position: relative;
+  display: inline-flex;
+}
+.tag-more > button.tag {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+.tag-more > button[aria-expanded='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.tag-pop {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 30;
+  padding-top: 6px;
+  animation: pop-in 0.16s ease-out;
+}
+@keyframes pop-in {
+  from {
+    transform: translateY(-4px);
+    opacity: 0;
+  }
+}
+.tag-pop > .tags {
+  width: max-content;
+  max-width: min(16rem, calc(100vw - 4rem));
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.15);
 }
 
 /* ---------- sliding toggle, filter button, filters drawer ---------- */
@@ -1840,6 +1946,11 @@ textarea.in {
 }
 .slide button[aria-selected='true'] {
   color: var(--accent);
+}
+/* The track scrolls sideways and clips anything outside it: draw the focus ring inside. */
+.slide button:focus-visible,
+.switch:focus-visible {
+  outline-offset: -2px;
 }
 /* A chosen option with a tone: its label takes the tone's ink (the thumb's fill is below). */
 .slide button.t-good[aria-selected='true'] {

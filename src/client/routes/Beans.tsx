@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router';
 import { statusOf } from '@shared/lookups';
 import { r1 } from '@shared/logic/units';
 import type { BeanView } from '@shared/logic/model';
 import { useModel } from '../lib/queries';
+import { useView } from '../lib/view';
 import { BeanCard } from '../components/BeanCard';
 import { Icon } from '../components/Icon';
 import { Thumb } from '../components/Photos';
 import {
+  Empty,
   FilterButton,
   FilterGroup,
   FilterSheet,
@@ -37,29 +38,33 @@ const SORTS = [
   ['name', 'A–Z'],
   ['brews', 'Most brewed'],
 ] as const;
+type Sort = (typeof SORTS)[number][0];
+
+const RSORTS = [
+  ['name', 'A–Z'],
+  ['rating', 'Top rated'],
+  ['bags', 'Most bags'],
+] as const;
+type RSort = (typeof RSORTS)[number][0];
+
+// Search, sort and filters are remembered on this device and kept in the address.
+const VIEW = { v: 'beans', f: 'drinking', q: '', s: 'recent', r: '', rs: 'name' };
 
 export function Beans() {
   const data = useModel();
   const sheets = useSheets();
-  const [params, setParams] = useSearchParams();
-  const view = params.get('v') === 'roasters' ? 'roasters' : 'beans';
-  const filter = params.get('f') ?? 'drinking';
-  const [q, setQ] = useState('');
-  const [sort, setSort] = useState<'recent' | 'rating' | 'name' | 'brews'>('recent');
-  const [roaster, setRoaster] = useState<string | null>(null);
-  const [rsort, setRsort] = useState<'name' | 'rating' | 'bags'>('name');
+  const [vw, setView] = useView('beans', VIEW);
   const [filters, setFilters] = useState(false);
   if (!data) return null;
   const { m } = data;
+  const view = vw.v === 'roasters' ? 'roasters' : 'beans';
+  const filter = FILTERS.some((t) => t.k === vw.f) ? vw.f : 'drinking';
+  const q = vw.q;
+  const setQ = (q: string) => setView({ q });
+  const sort: Sort = SORTS.find(([k]) => k === vw.s)?.[0] ?? 'recent';
+  const roaster = m.roasters.some((r) => r.id === vw.r) ? vw.r : null;
+  const rsort: RSort = RSORTS.find(([k]) => k === vw.rs)?.[0] ?? 'name';
   const active = (filter !== 'drinking' ? 1 : 0) + (roaster ? 1 : 0) + (sort !== 'recent' ? 1 : 0);
-  const setParam = (k: string, v: string) =>
-    setParams(
-      (p) => {
-        p.set(k, v);
-        return p;
-      },
-      { replace: true },
-    );
   const ql = q.trim().toLowerCase();
 
   const header = (
@@ -82,7 +87,7 @@ export function Beans() {
       <SlideToggle
         label="Show"
         value={view}
-        onChange={(v) => setParam('v', v)}
+        onChange={(v) => setView({ v })}
         options={[
           [
             'beans',
@@ -139,18 +144,14 @@ export function Beans() {
           <FilterSheet
             count={ractive}
             onClose={() => setFilters(false)}
-            onClear={() => setRsort('name')}
+            onClear={() => setView({ rs: 'name' })}
           >
             <FilterGroup title="Sort">
               <SlideToggle
                 label="Sort"
                 value={rsort}
-                options={[
-                  ['name', 'A–Z'],
-                  ['rating', 'Top rated'],
-                  ['bags', 'Most bags'],
-                ]}
-                onChange={setRsort}
+                options={RSORTS}
+                onChange={(rs) => setView({ rs })}
               />
             </FilterGroup>
           </FilterSheet>
@@ -181,7 +182,9 @@ export function Beans() {
             ))}
           </div>
         ) : (
-          <div className="empty">No roasters yet.</div>
+          <Empty icon="store" title={ql ? 'No Roasters match' : 'No Roasters yet'}>
+            {ql ? 'Try another search.' : 'Add the roasters you buy from.'}
+          </Empty>
         )}
       </div>
     );
@@ -235,11 +238,7 @@ export function Beans() {
         <FilterSheet
           count={active}
           onClose={() => setFilters(false)}
-          onClear={() => {
-            setParam('f', 'drinking');
-            setRoaster(null);
-            setSort('recent');
-          }}
+          onClear={() => setView({ f: 'drinking', r: '', s: 'recent' })}
         >
           <FilterGroup title="Status">
             <SlideToggle
@@ -251,22 +250,25 @@ export function Beans() {
                   {t.name} <span className="n">{m.beans.filter(t.f).length}</span>
                 </>,
               ])}
-              onChange={(k) => setParam('f', k)}
+              onChange={(f) => setView({ f })}
             />
           </FilterGroup>
           {m.roasters.length > 1 && (
             <FilterGroup title="Roaster">
               <Select
                 value={roaster ?? ''}
-                onChange={(v) => setRoaster(v || null)}
+                onChange={(r) => setView({ r })}
                 groups={[
                   {
                     options: [
-                      { value: '', label: 'Any roaster' },
+                      { value: '', label: `Any roaster (${m.beans.length})` },
                       ...m.roasters
                         .slice()
                         .sort((a, b) => a.name.localeCompare(b.name))
-                        .map((r) => ({ value: r.id, label: r.name })),
+                        .map((r) => ({
+                          value: r.id,
+                          label: `${r.name} (${m.beans.filter((b) => b.roaster_id === r.id).length})`,
+                        })),
                     ],
                   },
                 ]}
@@ -274,7 +276,12 @@ export function Beans() {
             </FilterGroup>
           )}
           <FilterGroup title="Sort">
-            <SlideToggle label="Sort" value={sort} options={SORTS} onChange={setSort} />
+            <SlideToggle
+              label="Sort"
+              value={sort}
+              options={SORTS}
+              onChange={(s) => setView({ s })}
+            />
           </FilterGroup>
         </FilterSheet>
       )}
@@ -285,7 +292,13 @@ export function Beans() {
           ))}
         </div>
       ) : (
-        <div className="empty">Nothing here.</div>
+        <Empty icon="bag" title="No Bags here">
+          {ql || roaster
+            ? 'Try another search or filter.'
+            : filter === 'all'
+              ? 'Add your first bag to get started.'
+              : `Nothing under ${cur.name}.`}
+        </Empty>
       )}
     </div>
   );

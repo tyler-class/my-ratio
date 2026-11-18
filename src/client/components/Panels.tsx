@@ -1,13 +1,15 @@
 // A board of panels the owner arranges: drag to reorder, half or full width, hide/show.
 // Order is live while dragging (the grid reflows; the dragged card follows the pointer
 // as an overlay). Half-width panels pack two to a row; the grid fills gaps densely.
-import { useRef, useState, type ReactNode } from 'react';
+// On touch a drag starts after a short press, so a swipe over a grip still scrolls.
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
   MeasuringStrategy,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   pointerWithin,
   closestCenter,
   useSensor,
@@ -23,12 +25,14 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import type { InsightsPanel } from '@shared/types';
-import { Icon } from './Icon';
-import { cx } from './ui';
+import { Icon, type IconName } from './Icon';
+import { useToast } from './Toast';
+import { cx, Fold } from './ui';
 
 export interface PanelDef {
   id: string;
   title: string;
+  icon: IconName;
   sub?: ReactNode;
   size: 'half' | 'full';
   body: ReactNode;
@@ -64,26 +68,56 @@ export function PanelBoard({
 }: {
   defs: PanelDef[];
   saved: InsightsPanel[];
-  onSave: (layout: InsightsPanel[]) => void;
+  /** Resolves to undefined when saving failed. */
+  onSave: (layout: InsightsPanel[]) => Promise<unknown>;
 }) {
+  const toast = useToast();
   // Local copy after the first change, so the screen never waits on the network.
   const [local, setLocal] = useState<InsightsPanel[] | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const lastMove = useRef(0);
+  // The order before a drag, to put back if the drag is cancelled or saving fails.
+  const before = useRef<InsightsPanel[] | null>(null);
   const layout = resolveLayout(defs, local ?? saved);
+  // The board as it is now, for an Undo pressed a few renders later.
+  const latest = useRef(layout);
+  useEffect(() => {
+    latest.current = layout;
+  });
   const byId = new Map(defs.map((d) => [d.id, d]));
   const shown = layout.filter((p) => !p.hidden);
   const hidden = layout.filter((p) => p.hidden);
 
-  const commit = (next: InsightsPanel[]) => {
+  /** Shows a change now and saves it; if saving fails, the board goes back to `prev`. */
+  const commit = (next: InsightsPanel[], prev: InsightsPanel[] = layout) => {
     setLocal(next);
-    onSave(next);
+    void onSave(next).then((ok) => {
+      if (ok === undefined) setLocal(prev);
+    });
   };
   const patch = (id: string, p: Partial<InsightsPanel>) =>
     commit(layout.map((x) => (x.id === id ? { ...x, ...p } : x)));
 
+  const hide = (id: string) => {
+    patch(id, { hidden: true });
+    toast({
+      text: `Hid ${byId.get(id)?.title ?? 'panel'}`,
+      action: {
+        label: 'Undo',
+        run: () => {
+          const cur = latest.current;
+          commit(
+            cur.map((x) => (x.id === id ? { ...x, hidden: false } : x)),
+            cur,
+          );
+        },
+      },
+    });
+  };
+
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
@@ -109,15 +143,22 @@ export function PanelBoard({
         collisionDetection={collide}
         measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
         onDragStart={({ active: a }) => {
+          before.current = layout;
           setLocal(layout);
           setActiveId(String(a.id));
         }}
         onDragOver={onOver}
         onDragEnd={() => {
           setActiveId(null);
-          if (local) onSave(resolveLayout(defs, local));
+          const prev = before.current ?? layout;
+          before.current = null;
+          if (local) commit(resolveLayout(defs, local), prev);
         }}
-        onDragCancel={() => setActiveId(null)}
+        onDragCancel={() => {
+          setActiveId(null);
+          if (before.current) setLocal(before.current);
+          before.current = null;
+        }}
       >
         <SortableContext items={shown.map((p) => p.id)} strategy={rectSortingStrategy}>
           <div className="pn-wrap">
@@ -131,7 +172,7 @@ export function PanelBoard({
                     size={p.size}
                     dragging={activeId === p.id}
                     onSize={() => patch(p.id, { size: p.size === 'full' ? 'half' : 'full' })}
-                    onHide={() => patch(p.id, { hidden: true })}
+                    onHide={() => hide(p.id)}
                   />
                 );
               })}
@@ -148,10 +189,12 @@ export function PanelBoard({
       </DndContext>
 
       {hidden.length > 0 && (
-        <details className="pn-hidden">
-          <summary>
-            <Icon name="eyeOff" size={16} /> Hidden panels ({hidden.length})
-          </summary>
+        <Fold
+          id="insights-hidden"
+          className="pn-hidden"
+          icon="eyeOff"
+          title={`Hidden panels (${hidden.length})`}
+        >
           <div className="card flat">
             {hidden.map((p) => (
               <div className="pn-hid-row" key={p.id}>
@@ -172,7 +215,7 @@ export function PanelBoard({
               </div>
             ))}
           </div>
-        </details>
+        </Fold>
       )}
     </div>
   );
@@ -202,7 +245,7 @@ function SortablePanel({
         <button
           type="button"
           className="pn-grip"
-          // Dragging a panel starts right away: not a swipe between tabs.
+          // A sideways drag here moves the panel, not to the next tab.
           data-no-tab-swipe
           aria-label={`Move ${def.title}`}
           ref={setActivatorNodeRef}
@@ -275,7 +318,10 @@ function Panel({
           </span>
         )}
         <div className="pn-t">
-          <h3>{def.title}</h3>
+          <h3>
+            <Icon name={def.icon} size={17} />
+            {def.title}
+          </h3>
           {def.sub ? <div className="sub">{def.sub}</div> : null}
         </div>
         {tools && <div className="pn-tools">{tools}</div>}

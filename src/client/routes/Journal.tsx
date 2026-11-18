@@ -1,43 +1,42 @@
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useState } from 'react';
 import { dayLabel } from '@shared/logic/dates';
 import type { BrewView } from '@shared/logic/model';
 import { useModel } from '../lib/queries';
+import { useView } from '../lib/view';
 import { BrewRow } from '../components/BrewRow';
-import { FilterButton, FilterGroup, FilterSheet, PageHeader, SlideToggle } from '../components/ui';
+import {
+  Empty,
+  FilterButton,
+  FilterGroup,
+  FilterSheet,
+  PageHeader,
+  SlideToggle,
+} from '../components/ui';
+
+const RATED = [
+  ['all', 'All', () => true],
+  ['rated', 'Rated', (b: BrewView) => b.rating != null],
+  ['unrated', 'Unrated', (b: BrewView) => b.rating == null],
+] as const;
+
+// Search and filters are remembered on this device and kept in the address, so the "Rate your
+// brew" notification can open /journal?rated=unrated.
+const VIEW = { q: '', rated: 'all', method: '' };
 
 export function Journal() {
   const data = useModel();
-  const [q, setQ] = useState('');
-  const [method, setMethod] = useState<string | null>(null);
-  const [rated, setRated] = useState<'all' | 'rated' | 'unrated'>('all');
+  const [vw, setView] = useView('journal', VIEW);
   const [limit, setLimit] = useState(40);
   const [open, setOpen] = useState<string | null>(null);
   const [filters, setFilters] = useState(false);
-  // ?rated=unrated (the "Rate your brew" notification): show only unrated brews, then drop it
-  // from the address.
-  const [params, setParams] = useSearchParams();
-  const ratedParam = params.get('rated');
-  const [seenParam, setSeenParam] = useState<string | null>(null);
-  if (ratedParam !== seenParam) {
-    setSeenParam(ratedParam);
-    if (ratedParam === 'unrated' || ratedParam === 'rated') setRated(ratedParam);
-  }
-  useEffect(() => {
-    if (ratedParam)
-      setParams(
-        (p) => {
-          p.delete('rated');
-          return p;
-        },
-        { replace: true },
-      );
-  }, [ratedParam, setParams]);
   if (!data) return null;
   const { m, state } = data;
   const now = new Date();
+  const q = vw.q;
   const ql = q.trim().toLowerCase();
   const methods = [...new Set(m.brews.map((b) => b.method).filter(Boolean) as string[])];
+  const rated = RATED.find(([k]) => k === vw.rated)?.[0] ?? 'all';
+  const method = methods.includes(vw.method) ? vw.method : null;
   const list = m.brews.filter((b) => {
     if (method && b.method !== method) return false;
     if (rated === 'rated' && b.rating == null) return false;
@@ -67,7 +66,7 @@ export function Journal() {
           type="search"
           placeholder="Search beans, roasters, notes"
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => setView({ q: e.target.value })}
         />
         <FilterButton count={active} onClick={() => setFilters(true)} />
       </div>
@@ -84,21 +83,19 @@ export function Journal() {
         <FilterSheet
           count={active}
           onClose={() => setFilters(false)}
-          onClear={() => {
-            setRated('all');
-            setMethod(null);
-          }}
+          onClear={() => setView({ rated: 'all', method: '' })}
         >
           <FilterGroup title="Rating">
             <SlideToggle
               label="Rating"
               value={rated}
-              options={[
-                ['all', 'All'],
-                ['rated', 'Rated'],
-                ['unrated', 'Unrated'],
-              ]}
-              onChange={setRated}
+              options={RATED.map(([k, label, f]) => [
+                k,
+                <>
+                  {label} <span className="n">{m.brews.filter(f).length}</span>
+                </>,
+              ])}
+              onChange={(rated) => setView({ rated })}
             />
           </FilterGroup>
           {methods.length > 0 && (
@@ -107,8 +104,13 @@ export function Journal() {
                 label="Method"
                 value={method}
                 allowClear
-                options={methods.map((o) => [o, o] as const)}
-                onChange={setMethod}
+                options={methods.map((o) => [
+                  o,
+                  <>
+                    {o} <span className="n">{m.brews.filter((b) => b.method === o).length}</span>
+                  </>,
+                ])}
+                onChange={(o) => setView({ method: o ?? '' })}
               />
             </FilterGroup>
           )}
@@ -132,7 +134,16 @@ export function Journal() {
           </div>
         </div>
       ))}
-      {list.length === 0 && <div className="empty">No brews match.</div>}
+      {list.length === 0 &&
+        (m.brews.length ? (
+          <Empty icon="search" title="No brews match">
+            Try another search or filter.
+          </Empty>
+        ) : (
+          <Empty icon="book" title="No brews yet">
+            Brews you log show up here, newest first.
+          </Empty>
+        ))}
       {list.length > limit && (
         <div style={{ textAlign: 'center', marginTop: 20 }}>
           <button type="button" className="btn" onClick={() => setLimit(limit + 40)}>

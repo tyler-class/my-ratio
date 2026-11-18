@@ -46,7 +46,17 @@ export function timeLabel(d: Date): string {
   return `${h % 12 || 12}:${pad(d.getMinutes())} ${h < 12 ? 'am' : 'pm'}`;
 }
 
-export const agoLabel = (n: number) => (n <= 0 ? 'today' : n === 1 ? 'yesterday' : `${n} days ago`);
+/** Calendar days ago, compact: "today", "yesterday", "3d ago". */
+export const agoLabel = (n: number) => (n <= 0 ? 'today' : n === 1 ? 'yesterday' : `${n}d ago`);
+
+/** Time since a moment, compact: "just now", "5m ago", "3h ago", then calendar days. */
+export function sinceLabel(d: Date, now: Date): string {
+  const min = Math.floor((now.getTime() - d.getTime()) / 60_000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}m ago`;
+  if (min < 24 * 60 && daysBetween(d, now) === 0) return `${Math.floor(min / 60)}h ago`;
+  return agoLabel(daysBetween(d, now));
+}
 
 export const inDays = (n: number) => (n === 1 ? '1 day' : `${n} days`);
 

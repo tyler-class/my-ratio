@@ -2,6 +2,7 @@ import { SELF } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 import { EXAMPLE_PROMPTS, MCP_PROMPTS } from '@shared/examples';
 import { ORIGIN, PASSWORD, session } from './helpers';
+import { version } from '../../package.json';
 
 const REDIRECT = 'https://client.example/callback';
 const PIXEL =
@@ -171,6 +172,10 @@ describe('MCP', () => {
       clientInfo: { name: 'test', version: '1' },
     });
     expect(init.status).toBe(200);
+    // The server reports the app's own version, so it moves with every release.
+    const serverInfo = (init.data.result as { serverInfo?: { name: string; version: string } })
+      .serverInfo;
+    expect(serverInfo).toMatchObject({ name: 'ratio', version });
     const instructions = (init.data.result as { instructions?: string } | undefined)?.instructions;
     expect(instructions).toContain('call get_started');
     expect(instructions).toContain(EXAMPLE_PROMPTS[0]!.prompt);

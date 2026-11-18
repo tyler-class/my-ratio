@@ -16,7 +16,7 @@ import {
   type Col,
   type MonthMix,
 } from '../components/charts';
-import { PageHeader, RB, SlideToggle, Stat } from '../components/ui';
+import { Empty, PageHeader, RB, SlideToggle, Stat } from '../components/ui';
 import { useSheets } from '../sheets/context';
 
 const DIMS = [
@@ -153,13 +153,18 @@ export function Insights() {
     return (
       <div>
         <PageHeader title="Insights" icon="chart" />
-        <div className="card empty">Log and rate a few brews to see patterns here.</div>
+        <div className="card">
+          <Empty icon="chart" title="No brews yet">
+            Log and rate a few brews to see patterns here.
+          </Empty>
+        </div>
       </div>
     );
 
   const panels: PanelDef[] = [
     {
       id: 'glance',
+      icon: 'sparkle',
       title: 'At a glance',
       size: 'full',
       body: (
@@ -195,6 +200,7 @@ export function Insights() {
     },
     {
       id: 'calendar',
+      icon: 'cal',
       title: 'Your coffee calendar',
       sub: 'Last 26 weeks',
       size: 'full',
@@ -202,6 +208,7 @@ export function Insights() {
     },
     {
       id: 'weekly',
+      icon: 'chart',
       title: 'Brews per week',
       sub: 'Last 12 weeks',
       size: 'half',
@@ -209,6 +216,7 @@ export function Insights() {
     },
     {
       id: 'ratings',
+      icon: 'smile',
       title: 'How you rate',
       sub: 'Distribution of all rated brews',
       size: 'half',
@@ -216,6 +224,7 @@ export function Insights() {
     },
     {
       id: 'taste',
+      icon: 'palette',
       title: 'Taste explorer',
       size: 'full',
       body: (
@@ -250,13 +259,16 @@ export function Insights() {
               max={10}
             />
           ) : (
-            <div className="empty">Not enough rated brews for that cut. Lower the minimum.</div>
+            <Empty icon="palette" title="Not enough rated brews">
+              Lower the minimum to see this cut.
+            </Empty>
           )}
         </>
       ),
     },
     {
       id: 'ratio',
+      icon: 'scale',
       title: 'Ratio vs rating',
       size: 'half',
       body: (
@@ -294,29 +306,37 @@ export function Insights() {
               )}
             </div>
           ) : (
-            <div className="empty">Rate a few more {ratioMethod ?? ''} brews to see this.</div>
+            <Empty icon="scale" title="Not enough rated brews">
+              Rate a few more {ratioMethod ?? ''} brews to see this.
+            </Empty>
           )}
         </>
       ),
     },
     {
       id: 'dialin',
+      icon: 'clock',
       title: 'Dial-in accuracy',
       sub: 'Extraction labels by month',
       size: 'half',
       body: (
         <>
           {months.length ? (
-            <StackedMonths data={months} />
+            <>
+              <StackedMonths data={months} />
+              <Legend />
+            </>
           ) : (
-            <div className="empty">Label extraction when rating to see this.</div>
+            <Empty icon="clock" title="No extraction labels yet">
+              Label extraction when rating to see this.
+            </Empty>
           )}
-          <Legend />
         </>
       ),
     },
     {
       id: 'top',
+      icon: 'bag',
       title: 'Top bags',
       sub: 'Average brew rating, 2+ rated brews',
       size: 'half',
@@ -335,13 +355,16 @@ export function Insights() {
               max={10}
             />
           ) : (
-            <div className="empty">Rate more brews.</div>
+            <Empty icon="bag" title="No bags to rank yet">
+              Rate at least two brews of a bag to see it here.
+            </Empty>
           )}
         </>
       ),
     },
     {
       id: 'orderAgain',
+      icon: 'store',
       title: 'Order Again Shortlist',
       sub: 'Finished bags you would buy again',
       size: 'half',
@@ -366,13 +389,16 @@ export function Insights() {
               </div>
             ))
           ) : (
-            <div className="empty">Mark finished bags as Yes or Definitely.</div>
+            <Empty icon="store" title="Nothing on the shortlist">
+              Mark finished bags as Yes or Definitely.
+            </Empty>
           )}
         </>
       ),
     },
     {
       id: 'spend',
+      icon: 'coin',
       title: 'Spend by roaster',
       sub: 'Total across bags, with price per 100 g',
       size: 'half',
@@ -390,18 +416,26 @@ export function Insights() {
               max={spendRows[0]!.spend}
             />
           ) : (
-            <div className="empty">No prices logged.</div>
+            <Empty icon="coin" title="No prices logged">
+              Add what you paid to a bag to see spend here.
+            </Empty>
           )}
         </>
       ),
     },
     {
       id: 'recipes',
+      icon: 'note',
       title: 'Recipe book',
       sub: 'Your best-rated brews. Tap one to brew it again.',
       size: 'half',
       body: (
         <>
+          {!best.length && (
+            <Empty icon="note" title="No rated brews yet">
+              Rate a brew and your best ones collect here.
+            </Empty>
+          )}
           {best.slice(0, 6).map((b) => (
             <div className="ri" key={b.id}>
               <button type="button" className="rm" onClick={() => sheets.log({ fromBrewId: b.id })}>
@@ -428,7 +462,7 @@ export function Insights() {
       <PanelBoard
         defs={panels}
         saved={state.settings.insights_layout}
-        onSave={(insights_layout) => void actions.saveSettings({ insights_layout })}
+        onSave={(insights_layout) => actions.saveSettings({ insights_layout })}
       />
     </div>
   );

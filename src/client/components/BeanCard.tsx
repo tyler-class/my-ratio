@@ -4,7 +4,7 @@ import { r1 } from '@shared/logic/units';
 import type { BeanView, Model } from '@shared/logic/model';
 import { useSheets } from '../sheets/context';
 import { Thumb } from './Photos';
-import { RB } from './ui';
+import { RB, TagRow } from './ui';
 
 export function stockLine(b: BeanView, m: Model, now = new Date()): string {
   const left = b.remaining != null ? Math.floor(b.remaining / m.dose7d) : null;
@@ -65,15 +65,7 @@ export function BeanCard({ b, m }: { b: BeanView; m: Model }) {
           <span>roasted {agoLabel(age)}</span>
         )}
       </div>
-      {b.tags.length > 0 && (
-        <div className="tags">
-          {b.tags.slice(0, 3).map((t) => (
-            <span className="tag acc" key={t}>
-              {t}
-            </span>
-          ))}
-        </div>
-      )}
+      {b.tags.length > 0 && <TagRow tags={b.tags} />}
       <div className="flexrow">
         {b.process && <span className="tag">{b.process}</span>}
         {b.status === 'finished' && by && (

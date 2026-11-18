@@ -7,18 +7,19 @@ import {
   TEMP_PRESETS,
   flagFor,
 } from '@shared/lookups';
-import { agoLabel, brewedAt, dayLabel, daysBetween, toLocalInput } from '@shared/logic/dates';
+import { brewedAt, dayLabel, sinceLabel, toLocalInput } from '@shared/logic/dates';
 import { recentGrinds, type BrewView, type Model } from '@shared/logic/model';
 import { fmtN, r1, tempIn, tempOut } from '@shared/logic/units';
 import type { Extraction, Strength } from '@shared/lookups';
 import type { Settings } from '@shared/types';
-import { ellipsis, numStr, parseNum } from '../lib/format';
+import { numStr, parseNum } from '../lib/format';
 import { useActions } from '../lib/queries';
 import { useToast } from '../components/Toast';
 import {
   ChoiceInput,
   ConfirmButton,
   Field,
+  NotesField,
   RB,
   Select,
   Sheet,
@@ -93,8 +94,7 @@ export function RateFields({ v, set }: { v: RateValues; set: (p: Partial<RateVal
         />
       </Field>
       <Field label="Tasting notes">
-        <textarea
-          className="in"
+        <NotesField
           value={v.tasting_notes}
           placeholder="Round, plummy, a little sharp at the end"
           onChange={(e) => set({ tasting_notes: e.target.value })}
@@ -145,7 +145,7 @@ export function RateSheet({ m, s, brewId }: { m: Model; s: Settings; brewId: str
     setBusy(false);
     if (ok) {
       sheets.close();
-      toast({ text: `Saved rating for #${b.num}` });
+      toast({ text: `Rated Brew #${b.num}` });
     }
   };
   const skip = async () => {
@@ -155,7 +155,7 @@ export function RateSheet({ m, s, brewId }: { m: Model; s: Settings; brewId: str
     if (ok) {
       sheets.close();
       toast({
-        text: `Skipped #${b.num}`,
+        text: `Skipped rating for Brew #${b.num}`,
         action: {
           label: 'Undo',
           run: () => void actions.brews.update(b.id, { rating_skipped: false }),
@@ -325,7 +325,7 @@ export function BrewSheet({
     setBusy(false);
     if (!row) return;
     sheets.close();
-    if (editing) toast({ text: `Saved #${editing.num}` });
+    if (editing) toast({ text: `Saved Brew #${editing.num}` });
     else
       toast({
         text: `Brew #${row.num} logged · ${bean?.name ?? ''}`,
@@ -344,11 +344,13 @@ export function BrewSheet({
             <ConfirmButton
               className="left"
               confirm="Tap again to delete"
-              onConfirm={async () => {
-                if (await actions.brews.remove(editing.id)) {
-                  sheets.close();
-                  toast({ text: `Deleted #${editing.num}` });
-                }
+              onConfirm={() => {
+                const undo = actions.brews.removeLater(editing.id);
+                sheets.close();
+                toast({
+                  text: `Deleted Brew #${editing.num}`,
+                  action: { label: 'Undo', run: undo },
+                });
               }}
             >
               Delete
@@ -383,7 +385,7 @@ export function BrewSheet({
                 aria-pressed={f.beanId === b.id}
                 onClick={() => pickBean(b.id)}
               >
-                {`${flagFor(b.origins[0] ?? '')} ${ellipsis(b.name, 22)}`.trim()}
+                {`${flagFor(b.origins[0] ?? '')} ${b.name}`.trim()}
               </button>
             ))}
           </div>
@@ -414,7 +416,7 @@ export function BrewSheet({
 
       {last && (
         <div className="callout" style={{ marginBottom: 18 }}>
-          <b>Last time · {agoLabel(daysBetween(last.date, now))}</b>
+          <b>Last time · {sinceLabel(last.date, now)}</b>
           {fmtN(last.dose_g)} g → {last.water_ml != null ? Math.round(last.water_ml) : '–'} mL ·
           grind {fmtN(last.grind)}
           {last.rating != null ? ` · rated ${fmtN(last.rating)}` : ''}
@@ -544,8 +546,7 @@ export function BrewSheet({
         </div>
       </Field>
       <Field label="Recipe / pour notes">
-        <input
-          className="in"
+        <NotesField
           value={f.notes}
           placeholder="60 g bloom 45 s, pours to 250/400/600, done 3:30"
           onChange={(e) => set({ notes: e.target.value })}

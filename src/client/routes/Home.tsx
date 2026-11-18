@@ -9,7 +9,7 @@ import { useActions, useModel } from '../lib/queries';
 import { BeanCard } from '../components/BeanCard';
 import { BrewRow } from '../components/BrewRow';
 import { Icon } from '../components/Icon';
-import { Stat } from '../components/ui';
+import { Empty, Stat } from '../components/ui';
 import { useSheets } from '../sheets/context';
 
 export function Home() {
@@ -98,7 +98,10 @@ export function Home() {
       {needs.length > 0 && (
         <div className="sec">
           <div className="sec-h">
-            <h2>Waiting for a rating</h2>
+            <h2>
+              <Icon name="smile" size={20} />
+              Waiting for a rating
+            </h2>
             <button
               type="button"
               className="more"
@@ -121,9 +124,12 @@ export function Home() {
 
       <div className="sec">
         <div className="sec-h">
-          <h2>On the bar</h2>
+          <h2>
+            <Icon name="coffee" size={20} />
+            On the bar
+          </h2>
           <Link className="more" to="/beans">
-            All beans
+            Beans
           </Link>
         </div>
         {drinking.length ? (
@@ -133,16 +139,20 @@ export function Home() {
             ))}
           </div>
         ) : (
-          <div className="card empty">
+          <div className="card">
             {m.beans.length ? (
-              'Nothing is open right now. Open a bag from the Beans tab.'
+              <Empty icon="bag" title="Nothing open">
+                Open a bag from the Beans tab.
+              </Empty>
             ) : (
-              <>
-                <p style={{ marginTop: 0 }}>Add your first bag of coffee to start logging.</p>
-                <button type="button" className="btn primary" onClick={() => sheets.beanForm()}>
-                  Add a bag
-                </button>
-              </>
+              <Empty icon="bean" title="No Bags yet">
+                Add your first bag of coffee to start logging.
+                <div>
+                  <button type="button" className="btn primary" onClick={() => sheets.beanForm()}>
+                    Add a bag
+                  </button>
+                </div>
+              </Empty>
             )}
           </div>
         )}
@@ -151,7 +161,10 @@ export function Home() {
       {(resting.length > 0 || freezer.length > 0 || incoming.length > 0) && (
         <div className="sec">
           <div className="sec-h">
-            <h2>Up next</h2>
+            <h2>
+              <Icon name="clock" size={20} />
+              Up next
+            </h2>
           </div>
           <div className="card flat">
             {resting.map((b) => {
@@ -194,7 +207,10 @@ export function Home() {
       {m.brews.length > 0 && (
         <div className="sec">
           <div className="sec-h">
-            <h2>Recent brews</h2>
+            <h2>
+              <Icon name="book" size={20} />
+              Recent brews
+            </h2>
             <Link className="more" to="/journal">
               Journal
             </Link>

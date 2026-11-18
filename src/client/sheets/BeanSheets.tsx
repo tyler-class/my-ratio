@@ -26,6 +26,7 @@ import {
   ChoiceInput,
   ConfirmButton,
   Field,
+  NotesField,
   RB,
   Select,
   Sheet,
@@ -47,9 +48,22 @@ export function BeanSheet({ m, s, beanId }: { m: Model; s: Settings; beanId: str
   const left = b.remaining != null ? Math.floor(b.remaining / m.dose7d) : null;
   const setStatus = async (k: BeanStatus | null) => {
     if (!k || k === b.status) return;
+    // Undo puts the status and the dates the move stamped back as they were.
+    const was = {
+      status: b.status,
+      received_on: b.received_on,
+      thawed_on: b.thawed_on,
+      finished_on: b.finished_on,
+    };
     const row = await actions.beans.update(b.id, { status: k });
-    if (row && k !== 'finished')
-      toast({ text: `${b.name} → ${STATUSES.find((x) => x.key === k)!.label}` });
+    if (row)
+      toast({
+        text:
+          k === 'finished'
+            ? `Finished ${b.name}`
+            : `${b.name} → ${STATUSES.find((x) => x.key === k)!.label}`,
+        action: { label: 'Undo', run: () => void actions.beans.update(b.id, was) },
+      });
   };
   const pts = b.brews
     .filter((x) => x.grind != null && x.rating != null)
@@ -188,8 +202,7 @@ export function BeanSheet({ m, s, beanId }: { m: Model; s: Settings; beanId: str
         </Field>
       )}
       <Field label="Notes on this bag">
-        <textarea
-          className="in"
+        <NotesField
           value={notes}
           placeholder="What you would tell future you"
           onChange={(e) => setNotes(e.target.value)}
@@ -314,11 +327,10 @@ export function BeanForm({ m, s, beanId }: { m: Model; s: Settings; beanId?: str
               confirm={
                 b.brews.length ? `Delete with ${b.brews.length} brews?` : 'Tap again to delete'
               }
-              onConfirm={async () => {
-                if (await actions.beans.remove(b.id)) {
-                  sheets.close();
-                  toast({ text: `Deleted ${b.name}` });
-                }
+              onConfirm={() => {
+                const undo = actions.beans.removeLater(b.id);
+                sheets.close();
+                toast({ text: `Deleted ${b.name}`, action: { label: 'Undo', run: undo } });
               }}
             >
               Delete
@@ -494,8 +506,7 @@ export function BeanForm({ m, s, beanId }: { m: Model; s: Settings; beanId?: str
           </div>
         </div>
         <Field label="Roaster’s description">
-          <textarea
-            className="in"
+          <NotesField
             value={f.roaster_notes}
             onChange={(e) => set({ roaster_notes: e.target.value })}
           />
@@ -597,11 +608,10 @@ export function RoasterSheet({ m, roasterId }: { m: Model; roasterId?: string })
             <ConfirmButton
               className="left"
               confirm="Tap again to delete"
-              onConfirm={async () => {
-                if (await actions.roasters.remove(r.id)) {
-                  sheets.close();
-                  toast({ text: `Deleted ${r.name}` });
-                }
+              onConfirm={() => {
+                const undo = actions.roasters.removeLater(r.id);
+                sheets.close();
+                toast({ text: `Deleted ${r.name}`, action: { label: 'Undo', run: undo } });
               }}
             >
               Delete
@@ -653,7 +663,7 @@ export function RoasterSheet({ m, roasterId }: { m: Model; roasterId?: string })
         </div>
       </div>
       <Field label="Notes">
-        <textarea className="in" value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
+        <NotesField value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
       </Field>
       {beans.length > 0 && (
         <Field label={`Bags from ${r!.name} (${beans.length})`}>

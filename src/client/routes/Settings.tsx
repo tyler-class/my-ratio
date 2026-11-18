@@ -8,9 +8,10 @@ import { useTheme } from '../lib/theme';
 import { isStandalone } from '../lib/pwa';
 import { useSheets } from '../sheets/context';
 import { useToast } from '../components/Toast';
-import { Icon } from '../components/Icon';
+import { Icon, type IconName } from '../components/Icon';
 import {
   ConfirmButton,
+  Fold,
   InfoTip,
   PageHeader,
   SlideToggle,
@@ -50,11 +51,13 @@ const USAGE_COUNTED = 'roasters, beans, brews and photos';
 
 function Section({
   title,
+  icon,
   trailing,
   id,
   children,
 }: {
   title: string;
+  icon: IconName;
   trailing?: ReactNode;
   id?: string;
   children: ReactNode;
@@ -62,7 +65,10 @@ function Section({
   return (
     <section className="sec" id={id}>
       <div className="sec-h">
-        <h2>{title}</h2>
+        <h2>
+          <Icon name={icon} size={20} />
+          {title}
+        </h2>
         {trailing}
       </div>
       <div className="card flat">{children}</div>
@@ -88,7 +94,7 @@ export function Settings() {
           </button>
         }
       />
-      <Section title="Appearance">
+      <Section title="Appearance" icon="palette">
         <SlideToggle
           label="Appearance"
           value={theme}
@@ -100,7 +106,7 @@ export function Settings() {
           onChange={setTheme}
         />
       </Section>
-      <Section title="Units">
+      <Section title="Units" icon="scale">
         <div className="fg">
           <label className="lbl">Water temperature</label>
           <SlideToggle
@@ -122,7 +128,7 @@ export function Settings() {
           />
         </div>
       </Section>
-      <Section title="Equipment">
+      <Section title="Equipment" icon="coffee">
         <div className="fg">
           <label className="lbl">Brew methods</label>
           <TagInput
@@ -163,7 +169,7 @@ export function Settings() {
       <ConnectAI />
       {/* Already installed: nothing to do here, so no section. */}
       {!isStandalone() && (
-        <Section title="Install on your phone" id="install">
+        <Section title="Install on your phone" icon="phone" id="install">
           <InstallHint />
         </Section>
       )}
@@ -174,7 +180,7 @@ export function Settings() {
         telemetry={s.telemetry}
         onTelemetry={(telemetry) => actions.saveSettings({ telemetry })}
       />
-      <Section title="Account">
+      <Section title="Account" icon="user">
         <button
           type="button"
           className="btn"
@@ -246,6 +252,7 @@ function Notifications() {
   return (
     <Section
       title={PUSH_TEXT.heading}
+      icon="bell"
       trailing={
         <InfoTip label={PUSH_TEXT.about}>
           <ul>
@@ -409,7 +416,6 @@ function ConnectAI() {
   const url = `${window.location.origin}/mcp`;
   const setups = assistants('Ratio', 'ratio', url);
   const [open, setOpen] = useState<string | null>(null);
-  const [examples, setExamples] = useState(false);
   const shown = setups.find((a) => a.id === open);
   const qc = useQueryClient();
   const toast = useToast();
@@ -422,7 +428,7 @@ function ConnectAI() {
   });
   const list = q.data?.connections ?? [];
   return (
-    <Section title="Connect an AI assistant">
+    <Section title="Connect an AI assistant" icon="ai">
       <p style={{ marginTop: 0 }}>{ASSISTANT_INTRO('coffee log')}</p>
       <label className="lbl">{CONNECTED_TEXT.urlLabel('Ratio')}</label>
       <div className="flexrow" style={{ flexWrap: 'nowrap' }}>
@@ -488,42 +494,34 @@ function ConnectAI() {
           {shown.after && <p className="sub">{shown.after}</p>}
         </div>
       )}
-      <button
-        type="button"
-        className="fold"
-        aria-expanded={examples}
-        onClick={() => setExamples((v) => !v)}
+      <Fold
+        id="settings-examples"
+        title={CONNECTED_TEXT.examples}
+        icon="sparkle"
+        className="examples"
       >
-        {CONNECTED_TEXT.examples}
-        <span className={examples ? 'fold-chev open' : 'fold-chev'}>
-          <Icon name="chevDown" size={14} />
-        </span>
-      </button>
-      {examples && (
-        <>
-          <p className="sub" style={{ marginTop: 0 }}>
-            {CONNECTED_TEXT.examplesHint}
-          </p>
-          <ul className="try-list">
-            {EXAMPLE_PROMPTS.slice(0, 6).map((e) => (
-              <li key={e.prompt}>
-                <button
-                  type="button"
-                  title="Copy"
-                  onClick={() =>
-                    void navigator.clipboard
-                      ?.writeText(e.prompt)
-                      .then(() => toast({ text: 'Copied.' }))
-                  }
-                >
-                  “{e.prompt}”
-                </button>
-              </li>
-            ))}
-          </ul>
-          <p className="sub">Claude also lists ready-made Ratio prompts in its + menu.</p>
-        </>
-      )}
+        <p className="sub" style={{ marginTop: 0 }}>
+          {CONNECTED_TEXT.examplesHint}
+        </p>
+        <ul className="try-list">
+          {EXAMPLE_PROMPTS.slice(0, 6).map((e) => (
+            <li key={e.prompt}>
+              <button
+                type="button"
+                title="Copy"
+                onClick={() =>
+                  void navigator.clipboard
+                    ?.writeText(e.prompt)
+                    .then(() => toast({ text: 'Copied.' }))
+                }
+              >
+                “{e.prompt}”
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p className="sub">Claude also lists ready-made Ratio prompts in its + menu.</p>
+      </Fold>
     </Section>
   );
 }
@@ -563,7 +561,7 @@ function Backup() {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   return (
-    <Section title="Backup">
+    <Section title="Backup" icon="archive">
       <p style={{ marginTop: 0 }} className="sub">
         A backup is one JSON file with every roaster, bag and brew. Photos stay in your storage
         bucket; restoring into this same Ratio keeps them attached.
@@ -632,6 +630,7 @@ function Updates({
   return (
     <Section
       title={UPDATE_TEXT.heading}
+      icon="download"
       trailing={
         !isSource && (
           <InfoTip label={UPDATE_TEXT.howUpdatesWork}>

@@ -7,10 +7,50 @@ import { useToast } from '../components/Toast';
 
 export const keys = { state: ['state'] as const, session: ['session'] as const };
 
+type Kind = 'roasters' | 'beans' | 'brews';
+type RowOf<K extends Kind> = K extends 'roasters' ? Roaster : K extends 'beans' ? Bean : Brew;
+
+/**
+ * Deletes waiting out their Undo: gone from the screen at once, sent to the server when the
+ * toast's time is up (or when the page goes away). Undo just cancels the wait, so nothing has to
+ * be rebuilt.
+ */
+export const UNDO_MS = 8000;
+const pending = new Map<string, { kind: Kind; timer: ReturnType<typeof setTimeout> }>();
+
+/** The state without anything waiting to be deleted (so a refetch doesn't bring it back). */
+function withoutPending(s: AppState): AppState {
+  if (!pending.size) return s;
+  const gone = (id: string | null) => !!id && pending.has(id);
+  return {
+    ...s,
+    roasters: s.roasters.filter((r) => !gone(r.id)),
+    beans: s.beans
+      .filter((b) => !gone(b.id))
+      .map((b) => (gone(b.roaster_id) ? { ...b, roaster_id: null } : b)),
+    // A bag's brews go with it.
+    brews: s.brews.filter((b) => !gone(b.id) && !gone(b.bean_id)),
+  };
+}
+
+function flushPending() {
+  for (const [id, { kind, timer }] of pending) {
+    clearTimeout(timer);
+    // keepalive lets the request finish after the page is gone.
+    void fetch(`/api/${kind}/${id}`, {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      keepalive: true,
+    }).catch(() => {});
+  }
+  pending.clear();
+}
+if (typeof window !== 'undefined') window.addEventListener('pagehide', flushPending);
+
 export function useAppState() {
   return useQuery({
     queryKey: keys.state,
-    queryFn: () => api.get<AppState>('/state'),
+    queryFn: async () => withoutPending(await api.get<AppState>('/state')),
     staleTime: 15_000,
   });
 }
@@ -23,9 +63,6 @@ export function useModel(): { state: AppState; m: Model } | null {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- `day` is a deliberate cache key
   return useMemo(() => (data ? { state: data, m: buildModel(data) } : null), [data, day]);
 }
-
-type Kind = 'roasters' | 'beans' | 'brews';
-type RowOf<K extends Kind> = K extends 'roasters' ? Roaster : K extends 'beans' ? Bean : Brew;
 
 /**
  * Writes that patch the cached state from the server's response, so the screen updates
@@ -90,6 +127,28 @@ export function useActions() {
             if (kind !== 'brews') await qc.invalidateQueries({ queryKey: keys.state });
             return true;
           }),
+        /**
+         * Takes it off the screen now and deletes it once Undo has had its time. Returns the
+         * undo, which puts it back.
+         */
+        removeLater: (id: string) => {
+          const timer = setTimeout(() => {
+            pending.delete(id);
+            void run(async () => {
+              await api.del(`/${kind}/${id}`);
+              return true;
+            }).finally(() => qc.invalidateQueries({ queryKey: keys.state }));
+          }, UNDO_MS);
+          pending.set(id, { kind, timer });
+          edit(withoutPending);
+          return () => {
+            const p = pending.get(id);
+            if (!p) return;
+            clearTimeout(p.timer);
+            pending.delete(id);
+            void qc.invalidateQueries({ queryKey: keys.state });
+          };
+        },
       };
     }
 

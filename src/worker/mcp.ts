@@ -28,6 +28,7 @@ import { r1, ratioOf, tempIn, tempOut } from '@shared/logic/units';
 import type { AppState, Bean, Brew, Roaster, Settings } from '@shared/types';
 import { EXAMPLE_PROMPTS, MCP_PROMPTS } from '@shared/examples';
 import { app } from './app';
+import { version } from '../../package.json';
 import { INTERNAL } from './auth';
 
 type Call = <T>(method: string, path: string, body?: unknown) => Promise<T>;
@@ -234,7 +235,7 @@ ${EXAMPLE_PROMPTS.map((e) => `- "${e.prompt}"`).join('\n')}`;
 
 function buildServer(call: Call) {
   const server = new McpServer(
-    { name: 'ratio', version: '1.0.0' },
+    { name: 'ratio', version },
     {
       instructions:
         [
