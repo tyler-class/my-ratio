@@ -1,20 +1,15 @@
 import { useState } from 'react';
-import {
-  EXTRACTION,
-  RATIO_PRESETS,
-  STATUSES,
-  STRENGTH,
-  TEMP_PRESETS,
-  flagFor,
-} from '@shared/lookups';
+import { EXTRACTION, STATUSES, STRENGTH } from '@shared/lookups';
 import { brewedAt, dayLabel, sinceLabel, toLocalInput } from '@shared/logic/dates';
-import { recentGrinds, type BrewView, type Model } from '@shared/logic/model';
+import type { BrewView, Model } from '@shared/logic/model';
 import { fmtN, r1, tempIn, tempOut } from '@shared/logic/units';
 import type { Extraction, Strength } from '@shared/lookups';
 import type { Settings } from '@shared/types';
 import { numStr, parseNum } from '../lib/format';
 import { useActions } from '../lib/queries';
 import { useToast } from '../components/Toast';
+import { DatePicker, TimePicker } from '../components/DateTimePicker';
+import { Icon } from '../components/Icon';
 import {
   ChoiceInput,
   ConfirmButton,
@@ -203,8 +198,15 @@ interface Recipe {
   water: string;
   temp: string;
   notes: string;
-  ratio: number;
+  /** The number after "1:", as typed. */
+  ratio: string;
 }
+
+/** With no brew of this bean to go on: 1:16.67, and 201°F (94°C). */
+const DEFAULT_RATIO = '16.67';
+const defaultTemp = (s: Settings) => (s.temp_unit === 'F' ? '201' : '94');
+/** A ratio as typed: up to two decimals, no trailing zeros. */
+const ratioStr = (r: number) => String(Math.round(r * 100) / 100);
 
 function recipeFrom(br: BrewView | null, s: Settings): Recipe {
   return {
@@ -213,11 +215,22 @@ function recipeFrom(br: BrewView | null, s: Settings): Recipe {
     grind: numStr(br?.grind),
     dose: br?.dose_g != null ? String(br.dose_g) : '20',
     water: br?.water_ml != null ? String(r1(br.water_ml)) : '',
-    temp:
-      numStr(tempOut(br?.water_temp_c ?? null, s.temp_unit)) ||
-      (s.temp_unit === 'F' ? '201' : '94'),
+    temp: numStr(tempOut(br?.water_temp_c ?? null, s.temp_unit)) || defaultTemp(s),
     notes: br?.recipe_notes ?? '',
-    ratio: br?.ratio ?? 16,
+    ratio: br?.ratio ? ratioStr(br.ratio) : DEFAULT_RATIO,
+  };
+}
+
+/** A fresh recipe for a bean with no brews yet: the method and grinder carried over. */
+function freshFor(from: Recipe, s: Settings): Recipe {
+  const dose = parseNum(from.dose) ?? 20;
+  return {
+    ...from,
+    grind: '',
+    notes: '',
+    temp: defaultTemp(s),
+    ratio: DEFAULT_RATIO,
+    water: String(r1(dose * Number(DEFAULT_RATIO))),
   };
 }
 
@@ -253,16 +266,15 @@ export function BrewSheet({
     const beanId = prefill?.beanId ?? br?.bean_id ?? m.brews[0]?.bean_id ?? '';
     if (!br && beanId) br = m.beanMap.get(beanId)?.last ?? null;
     if (!br) br = m.brews[0] ?? null;
-    const rec = recipeFrom(br, s);
-    if (br && br.bean_id !== beanId) {
-      rec.grind = '';
-      rec.notes = '';
-    }
-    if (!rec.water) rec.water = String(r1((parseNum(rec.dose) ?? 20) * rec.ratio));
+    let rec = recipeFrom(br, s);
+    // Ratio, temperature and grind come from this bean's last brew; a bean never brewed starts
+    // from the defaults.
+    if (br && br.bean_id !== beanId) rec = freshFor(rec, s);
+    if (!rec.water)
+      rec.water = String(r1((parseNum(rec.dose) ?? 20) * (parseNum(rec.ratio) ?? 16.67)));
     // When it was brewed: now, as the sheet opens; change it for one brewed earlier.
     return { beanId, ...rec, when: toLocalInput(new Date()), lock: true };
   });
-  const [rate, setRate] = useState(!!editing);
   const [rv, setRv] = useState<RateValues>(() => rateFrom(editing));
   const [busy, setBusy] = useState(false);
   const set = (p: Partial<typeof f>) => setF((x) => ({ ...x, ...p }));
@@ -272,32 +284,43 @@ export function BrewSheet({
   const best = bean?.best ?? null;
   const doseN = parseNum(f.dose);
   const waterN = parseNum(f.water);
-  const ratioNow = doseN && waterN && doseN > 0 ? waterN / doseN : null;
+  const ratioN = parseNum(f.ratio);
   const now = new Date();
 
   const pickBean = (id: string) => {
     const nb = m.beanMap.get(id);
     if (!editing && nb?.last) setF((x) => ({ ...x, beanId: id, ...recipeFrom(nb.last, s) }));
-    else if (!editing) setF((x) => ({ ...x, beanId: id, grind: '', notes: '' }));
+    else if (!editing) setF((x) => ({ ...x, beanId: id, ...freshFor(x, s) }));
     else set({ beanId: id });
   };
+  // Dose and water: locked, one follows the other at the ratio; free, the ratio follows them.
   const onDose = (val: string) => {
     const d = parseNum(val);
-    if (f.lock && d && d > 0 && f.ratio) set({ dose: val, water: String(r1(d * f.ratio)) });
+    if (f.lock && d && d > 0 && ratioN) set({ dose: val, water: String(r1(d * ratioN)) });
+    else if (d && d > 0 && waterN) set({ dose: val, ratio: ratioStr(waterN / d) });
     else set({ dose: val });
   };
   const onWater = (val: string) => {
     const w = parseNum(val);
-    set({ water: val, ratio: doseN && w && doseN > 0 ? w / doseN : f.ratio });
+    if (f.lock && w && w > 0 && ratioN) set({ water: val, dose: String(r1(w / ratioN)) });
+    else if (w && doseN && doseN > 0) set({ water: val, ratio: ratioStr(w / doseN) });
+    else set({ water: val });
   };
-  const setRatio = (r: number) =>
-    set({ ratio: r, water: doseN && doseN > 0 ? String(r1(doseN * r)) : f.water });
+  const onRatio = (val: string) => {
+    const r = parseNum(val);
+    set({ ratio: val, ...(r && doseN && doseN > 0 ? { water: String(r1(doseN * r)) } : {}) });
+  };
   const nudgeGrind = (d: number) => {
     const g = parseNum(f.grind);
     set({ grind: String(Math.round(((g ?? 6) + d) * 10) / 10) });
   };
-  const grinds = recentGrinds(bean);
-  const drinking = m.beans.filter((b) => b.status === 'drinking');
+  // Choices from Settings, plus this brew's own if it isn't one of them any more.
+  const withCurrent = (list: string[], v: string) => (v && !list.includes(v) ? [...list, v] : list);
+  const methods = withCurrent(s.methods, f.method);
+  const grinders = withCurrent(s.grinders, f.grinder);
+  const [whenDay, whenTime] = f.when.split('T') as [string, string];
+  const rated =
+    rv.rating != null || !!rv.extraction || !!rv.strength || !!rv.tasting_notes || !!rv.next_time;
   const groups = STATUSES.map((st) => ({
     st,
     items: m.beans.filter((b) => b.status === st.key).sort((a, b) => a.name.localeCompare(b.name)),
@@ -316,7 +339,7 @@ export function BrewSheet({
       water_temp_c: tempIn(parseNum(f.temp), s.temp_unit),
       recipe_notes: f.notes,
       ...(brewedAt(f.when) ? { brewed_at: brewedAt(f.when)! } : {}),
-      ...(rate ? ratePayload(rv) : {}),
+      ...(editing || rated ? ratePayload(rv) : {}),
     };
     setBusy(true);
     const row = editing
@@ -365,31 +388,22 @@ export function BrewSheet({
         </>
       }
     >
-      <Field label="When">
-        <input
-          className="in when"
-          type="datetime-local"
-          aria-label="When you brewed it"
-          value={f.when}
-          onChange={(e) => set({ when: e.target.value })}
-        />
+      <Field label="Brew time">
+        <div className="flexrow" style={{ gap: 8 }}>
+          <DatePicker
+            value={whenDay}
+            label="Brew date"
+            onChange={(d) => set({ when: `${d}T${whenTime}` })}
+          />
+          <TimePicker
+            value={whenTime}
+            label="Brew time"
+            allowNone={false}
+            onChange={(t) => set({ when: `${whenDay}T${t}` })}
+          />
+        </div>
       </Field>
       <Field label="Bean">
-        {drinking.length > 0 && (
-          <div className="seg" style={{ marginBottom: 10 }}>
-            {drinking.map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                className="chip"
-                aria-pressed={f.beanId === b.id}
-                onClick={() => pickBean(b.id)}
-              >
-                {`${flagFor(b.origins[0] ?? '')} ${b.name}`.trim()}
-              </button>
-            ))}
-          </div>
-        )}
         <Select
           value={f.beanId}
           onChange={pickBean}
@@ -438,19 +452,37 @@ export function BrewSheet({
       )}
 
       <Field label="Method">
-        <ChoiceInput options={s.methods} value={f.method} onChange={(v) => set({ method: v })} />
+        {methods.length ? (
+          <SlideToggle
+            label="Method"
+            value={f.method}
+            options={methods.map((v) => [v, v] as const)}
+            onChange={(v) => set({ method: v })}
+          />
+        ) : (
+          <ChoiceInput options={[]} value={f.method} onChange={(v) => set({ method: v })} />
+        )}
       </Field>
       <Field label="Grinder">
-        <ChoiceInput
-          options={s.grinders}
-          value={f.grinder}
-          placeholder="Grinder name"
-          onChange={(v) => set({ grinder: v })}
-        />
+        {grinders.length ? (
+          <SlideToggle
+            label="Grinder"
+            value={f.grinder}
+            options={grinders.map((v) => [v, v] as const)}
+            onChange={(v) => set({ grinder: v })}
+          />
+        ) : (
+          <ChoiceInput
+            options={[]}
+            value={f.grinder}
+            placeholder="Grinder name"
+            onChange={(v) => set({ grinder: v })}
+          />
+        )}
       </Field>
       <Field label="Grind setting">
         <div className="step compact">
-          <button type="button" aria-label="Finer" onClick={() => nudgeGrind(-0.2)}>
+          <button type="button" aria-label="Finer" onClick={() => nudgeGrind(-0.1)}>
             −
           </button>
           <input
@@ -460,39 +492,45 @@ export function BrewSheet({
             placeholder="6.2"
             onChange={(e) => set({ grind: e.target.value })}
           />
-          <button type="button" aria-label="Coarser" onClick={() => nudgeGrind(0.2)}>
+          <button type="button" aria-label="Coarser" onClick={() => nudgeGrind(0.1)}>
             +
           </button>
         </div>
-        {grinds.length > 0 && (
-          <div className="seg" style={{ marginTop: 8 }}>
-            {grinds.map((g) => (
-              <button
-                key={g}
-                type="button"
-                className="chip sm"
-                aria-pressed={parseNum(f.grind) === g}
-                onClick={() => set({ grind: String(g) })}
-              >
-                {g}
-              </button>
-            ))}
-          </div>
-        )}
       </Field>
-      <div className="two fg">
+      <div className="fg dose-water">
         <div>
-          <label className="lbl">Dose (g)</label>
+          <label className="lbl" htmlFor="brew-dose">
+            Dose (g)
+          </label>
           <input
+            id="brew-dose"
             className="in"
             inputMode="decimal"
             value={f.dose}
             onChange={(e) => onDose(e.target.value)}
           />
         </div>
+        {/* Between the two: locked, they move together at the ratio. */}
+        <button
+          type="button"
+          className={`ratio-lock${f.lock ? ' on' : ''}`}
+          aria-pressed={f.lock}
+          aria-label={f.lock ? 'Dose and water locked to the ratio' : 'Dose and water free'}
+          title={
+            f.lock
+              ? 'Locked: changing the dose or water keeps the ratio'
+              : 'Free: changing the dose or water changes the ratio'
+          }
+          onClick={() => set({ lock: !f.lock })}
+        >
+          <Icon name={f.lock ? 'lock' : 'unlock'} size={18} />
+        </button>
         <div>
-          <label className="lbl">Water (mL)</label>
+          <label className="lbl" htmlFor="brew-water">
+            Water (mL)
+          </label>
           <input
+            id="brew-water"
             className="in"
             inputMode="decimal"
             value={f.water}
@@ -500,29 +538,20 @@ export function BrewSheet({
           />
         </div>
       </div>
-      <div className="fg ratio">
-        <span className="big">{ratioNow ? `1 : ${ratioNow.toFixed(2)}` : '1 : –'}</span>
-        {RATIO_PRESETS.map((r) => (
-          <button
-            key={r}
-            type="button"
-            className="chip sm"
-            aria-pressed={ratioNow != null && Math.abs(ratioNow - r) < 0.03}
-            onClick={() => setRatio(r)}
-          >
-            1:{r}
-          </button>
-        ))}
-        <button
-          type="button"
-          className="chip sm"
-          aria-pressed={f.lock}
-          onClick={() => set({ lock: !f.lock })}
-          title="When locked, changing the dose keeps the ratio"
-        >
-          {f.lock ? 'Ratio locked' : 'Ratio free'}
-        </button>
-      </div>
+      <Field label="Ratio">
+        <div className="ratio-in">
+          <span className="ratio-one" aria-hidden="true">
+            1 :
+          </span>
+          <input
+            className="in"
+            inputMode="decimal"
+            aria-label="Ratio, water to 1 of coffee"
+            value={f.ratio}
+            onChange={(e) => onRatio(e.target.value)}
+          />
+        </div>
+      </Field>
       <Field label={`Water temp (°${s.temp_unit})`}>
         <div className="flexrow">
           <input
@@ -532,40 +561,16 @@ export function BrewSheet({
             value={f.temp}
             onChange={(e) => set({ temp: e.target.value })}
           />
-          {TEMP_PRESETS[s.temp_unit].map((t) => (
-            <button
-              key={t}
-              type="button"
-              className="chip sm"
-              aria-pressed={f.temp === String(t)}
-              onClick={() => set({ temp: String(t) })}
-            >
-              {t}
-            </button>
-          ))}
         </div>
       </Field>
-      <Field label="Recipe / pour notes">
+      <Field label="Comments">
         <NotesField
           value={f.notes}
           placeholder="60 g bloom 45 s, pours to 250/400/600, done 3:30"
           onChange={(e) => set({ notes: e.target.value })}
         />
       </Field>
-      {editing ? (
-        <RateFields v={rv} set={(p) => setRv((x) => ({ ...x, ...p }))} />
-      ) : (
-        <div className="fg">
-          <button type="button" className="chip" aria-pressed={rate} onClick={() => setRate(!rate)}>
-            {rate ? 'Rating it now' : 'Rate it now (or later)'}
-          </button>
-          {rate && (
-            <div style={{ marginTop: 16 }}>
-              <RateFields v={rv} set={(p) => setRv((x) => ({ ...x, ...p }))} />
-            </div>
-          )}
-        </div>
-      )}
+      <RateFields v={rv} set={(p) => setRv((x) => ({ ...x, ...p }))} />
     </Sheet>
   );
 }

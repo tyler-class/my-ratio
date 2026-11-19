@@ -2355,3 +2355,224 @@ textarea.in {
   font-size: 12.5px;
   color: var(--ink2);
 }
+
+/* --- 1.0.3: the Good morning panel's gradient gets the logo's fine grain (under its text). */
+.hero {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='2 0 0 0 -0.5 2 0 0 0 -0.5 2 0 0 0 -0.5 0 0 0 0 0.07'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E")
+      0 0 / 180px 180px,
+    linear-gradient(135deg, var(--accent-soft), var(--surface));
+}
+
+/* Log a brew: dose and water either side of the ratio lock, which joins them. */
+.dose-water {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 8px;
+}
+.ratio-lock {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink2);
+}
+.ratio-lock.on {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.ratio-lock:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -4px;
+}
+.ratio-in {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 200px;
+}
+.ratio-one {
+  flex: none;
+  font-weight: 650;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+.ratio-in .in {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Date and time pickers (themed; the browser's own are not used). */
+.dt-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 15px;
+  white-space: nowrap;
+}
+.dt-field svg {
+  color: var(--ink2);
+}
+.dt-field.muted {
+  color: var(--ink2);
+}
+.dt-field[aria-expanded='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.dt-pop {
+  position: fixed;
+  z-index: 90;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--sh);
+  padding: 10px;
+}
+.cal {
+  width: 270px;
+}
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.cal-title {
+  font-weight: 650;
+  font-size: 14px;
+}
+.cal-nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: var(--ink2);
+}
+.cal-nav:not(.next) svg {
+  transform: rotate(180deg);
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.cal-dow {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink2);
+  padding: 4px 0;
+}
+.cal-day {
+  aspect-ratio: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 14px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.cal-day.today {
+  color: var(--accent);
+  font-weight: 700;
+}
+.cal-day.on {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 650;
+}
+.cal-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+.cal-today {
+  font-size: 13px;
+  color: var(--accent);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.time-list {
+  width: 150px;
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.time-opt {
+  justify-content: flex-start;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.time-opt.on {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+@media (hover: hover) and (pointer: fine) {
+  .dt-field:hover,
+  .cal-nav:hover,
+  .cal-day:not(.on):hover,
+  .time-opt:not(.on):hover,
+  .cal-today:hover {
+    background: color-mix(in srgb, var(--ink) 7%, transparent);
+  }
+}
+@media (pointer: coarse) {
+  .cal {
+    width: 296px;
+  }
+  .time-opt {
+    padding: 10px 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dt-pop {
+    animation: none;
+  }
+}
+
+/* The calendar's and time list's buttons are plain (Ratio's raised button look stays off them). */
+.cal-nav,
+.cal-day,
+.cal-today,
+.time-opt {
+  border: 0;
+  background: none;
+  box-shadow: none;
+  min-height: 0;
+  font: inherit;
+}
+.cal-day,
+.time-opt {
+  font-size: 14px;
+}
+.cal-day.on,
+.time-opt.on {
+  background: var(--accent);
+}
+.cal-today {
+  font-size: 13px;
+}
