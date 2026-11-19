@@ -2576,3 +2576,10 @@ textarea.in {
 .cal-today {
   font-size: 13px;
 }
+
+/* --- 1.0.4: the logo is the stoneware mug on the crema tile (public/favicon.svg). */
+img.logo {
+  display: block;
+  background: none;
+  border-radius: 0;
+}

@@ -30,9 +30,7 @@ function activeTab(path: string): string {
 export function Brand() {
   return (
     <div className="brand serif">
-      <span className="logo">
-        <Icon name="coffee" size={21} strokeWidth={2} />
-      </span>
+      <img className="logo" src="/favicon.svg" alt="" width={36} height={36} />
       Ratio
     </div>
   );
