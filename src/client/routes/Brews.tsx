@@ -20,14 +20,13 @@ const RATED = [
 ] as const;
 
 // Search and filters are remembered on this device and kept in the address, so the "Rate your
-// brew" notification can open /journal?rated=unrated.
+// brew" notification can open /brews?rated=unrated.
 const VIEW = { q: '', rated: 'all', method: '' };
 
-export function Journal() {
+export function Brews() {
   const data = useModel();
-  const [vw, setView] = useView('journal', VIEW);
+  const [vw, setView] = useView('journal', VIEW); // (stored under its old name, so remembered filters carry over)
   const [limit, setLimit] = useState(40);
-  const [open, setOpen] = useState<string | null>(null);
   const [filters, setFilters] = useState(false);
   if (!data) return null;
   const { m, state } = data;
@@ -59,7 +58,7 @@ export function Journal() {
   }
   return (
     <div>
-      <PageHeader title="Journal" icon="book" />
+      <PageHeader title="Brews" icon="book" />
       <div className="searchrow">
         <input
           className="in search"
@@ -123,13 +122,7 @@ export function Journal() {
           </div>
           <div className="card flat" style={{ padding: '4px 16px' }}>
             {g.items.map((b) => (
-              <BrewRow
-                key={b.id}
-                b={b}
-                s={state.settings}
-                open={open === b.id}
-                onToggle={() => setOpen(open === b.id ? null : b.id)}
-              />
+              <BrewRow key={b.id} b={b} s={state.settings} />
             ))}
           </div>
         </div>

@@ -177,7 +177,7 @@ export function rateNotice(
     key: `rate-${today}`,
     title: 'Rate your brew',
     body: rateBody(n),
-    url: '/journal?rated=unrated',
+    url: '/brews?rated=unrated',
     tag: 'rate',
   };
 }

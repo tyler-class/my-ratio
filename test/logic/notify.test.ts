@@ -290,7 +290,7 @@ describe('rate your brew', () => {
       key: 'rate-2026-11-09',
       title: 'Rate your brew',
       body: '3 brews today aren’t rated yet.',
-      url: '/journal?rated=unrated',
+      url: '/brews?rated=unrated',
       tag: 'rate',
     });
     expect(rateNotice(m, '2026-11-09', RATE_HOUR - 1, TZ)).toBeNull(); // before 8 p.m.

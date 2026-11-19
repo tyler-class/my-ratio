@@ -8,7 +8,7 @@ import { onPushOpen } from '../kit/push';
 
 const TABS: GlassTab[] = [
   ['/', 'Home', 'home'],
-  ['/journal', 'Journal', 'book'],
+  ['/brews', 'Brews', 'book'],
   ['/beans', 'Beans', 'bean'],
   ['/insights', 'Insights', 'chart'],
   ['/settings', 'Settings', 'settings'],
@@ -30,7 +30,7 @@ function activeTab(path: string): string {
 export function Brand() {
   return (
     <div className="brand serif">
-      <img className="logo" src="/favicon.svg" alt="" width={36} height={36} />
+      <img className="logo" src="/pwa-192x192.png" alt="" width={36} height={36} />
       Ratio
     </div>
   );

@@ -26,7 +26,7 @@
   --blue-ink: #405f75;
   --scrim: rgb(20 10 4 / 0.5);
   --sh: 0 1px 2px rgba(60, 32, 12, 0.05), 0 10px 28px rgba(60, 32, 12, 0.07);
-  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --serif: 'IBM Plex Serif', 'Iowan Old Style', Georgia, serif;
   --sans:
     -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, 'Segoe UI', system-ui, sans-serif;
   --safe-top: env(safe-area-inset-top, 0px);
@@ -756,6 +756,7 @@ textarea.in {
   align-items: center;
   gap: 10px;
   padding-right: 14px;
+  font-size: 16px; /* a button, so it doesn't get the text fields' 16px on its own */
   text-align: left;
   cursor: pointer;
 }
@@ -1050,17 +1051,6 @@ textarea.in {
   color: var(--ink2);
   text-align: right;
   flex: none;
-}
-.rd {
-  padding: 2px 2px 16px 52px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-@media (max-width: 600px) {
-  .rd {
-    padding-left: 2px;
-  }
 }
 .callout {
   background: var(--accent-soft);
@@ -2577,9 +2567,244 @@ textarea.in {
   font-size: 13px;
 }
 
-/* --- 1.0.4: the logo is the stoneware mug on the crema tile (public/favicon.svg). */
+/* --- The logo is the app icon itself (public/pwa-192x192.png), rounded like the favicon, so
+   its grain matches the installed icon. An SVG drawn this small renders the grain coarser. */
 img.logo {
   display: block;
   background: none;
-  border-radius: 0;
+  border-radius: 22%;
+}
+.appbar img.logo {
+  border-radius: 22%;
+}
+
+/* The time list scrolls; its rows keep their full height (in a height-capped column they would
+   otherwise shrink, spilling the text out of the highlight). */
+.time-list {
+  position: relative; /* so a row's offsetTop, used to scroll to the chosen time, is in the list */
+}
+.time-opt {
+  flex: none;
+  display: block;
+  width: 100%;
+  line-height: 20px;
+}
+
+/* The stoneware section icons (Icon's CERAMIC): pictures, not line art, so no colour or tint. */
+img.ceramic {
+  display: block;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+.empty-ceramic {
+  margin-bottom: 6px;
+}
+
+/* Desktop sidebar: the current page has a dark brown outline, bold text and a light brown fill
+   (the outline is drawn inside, so nothing shifts). */
+@media (min-width: 768px) {
+  .side nav a[aria-current='page'] {
+    background: var(--accent-soft);
+    color: color-mix(in srgb, var(--accent) 62%, var(--ink));
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 70%, var(--ink));
+    font-weight: 750;
+  }
+}
+
+/* A bag's status as a path: each step an icon on a clay blob, joined by a line (brown up to the
+   current step, faint after). The current step: a solid brown blob and a bold label. */
+.spath {
+  display: grid;
+  padding: 2px 0;
+}
+.spath-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink2);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+/* The line to the next step, from this blob's edge to the next one's. */
+.spath-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 23px;
+  left: calc(50% + 26px);
+  right: calc(-50% + 26px);
+  height: 2px;
+  border-radius: 2px;
+  background: var(--line);
+}
+.spath-step.done::after {
+  background: var(--accent);
+}
+.spath-blob {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  color: var(--accent);
+}
+.spath-blob .spath-shape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.spath-shape path {
+  fill: var(--accent-soft);
+  transition: fill 0.2s ease;
+}
+.spath-blob > .flex-none {
+  position: relative;
+}
+.spath-label {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+.spath-step[aria-checked='true'] .spath-shape path {
+  fill: var(--accent);
+}
+.spath-step[aria-checked='true'] .spath-blob {
+  color: var(--accent-ink);
+}
+.spath-step[aria-checked='true'] .spath-label {
+  color: var(--ink);
+  font-weight: 750;
+}
+@media (hover: hover) and (pointer: fine) {
+  .spath-step:not([aria-checked='true']):hover .spath-shape path {
+    fill: color-mix(in srgb, var(--accent) 22%, var(--accent-soft));
+  }
+}
+.spath-step:focus-visible {
+  outline: none;
+}
+.spath-step:focus-visible .spath-label {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* A status shown as a line icon in brown (Home's upcoming bags, the bean picker's groups). */
+.status-ic {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 11px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.sel-grp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sel-grp svg {
+  color: var(--accent);
+}
+
+/* Phones: a light crema tab bar; each tab's stoneware icon keeps its clay blob, and the current
+   tab is a solid pill in the blobs' own brown, so its blob melts into it and the choice is clear. */
+.glass-bar {
+  --glass-label: #5d3b25;
+  --glass-lens: #a4542a;
+  --glass-lens-held: #b0603a;
+  --glass-rim-top: rgb(255 255 255 / 0.9);
+  --glass-rim-low: rgb(120 70 35 / 0.18);
+  --glass-edge: rgb(120 70 35 / 0.22);
+  background: linear-gradient(180deg, #fbf3e8 0%, #f2e3cf 100%);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .glass-bar {
+    --glass-label: #e6d3bd;
+    --glass-rim-top: rgb(255 235 210 / 0.18);
+    --glass-rim-low: rgb(0 0 0 / 0.3);
+    --glass-edge: rgb(255 235 210 / 0.1);
+    background: linear-gradient(180deg, #3b2b20 0%, #2e2118 100%);
+  }
+}
+:root[data-theme='dark'] .glass-bar {
+  --glass-label: #e6d3bd;
+  --glass-rim-top: rgb(255 235 210 / 0.18);
+  --glass-rim-low: rgb(0 0 0 / 0.3);
+  --glass-edge: rgb(255 235 210 / 0.1);
+  background: linear-gradient(180deg, #3b2b20 0%, #2e2118 100%);
+}
+.glass-tab[data-lit] {
+  color: #fff7ee;
+  font-weight: 750;
+}
+
+/* A dropdown whose options have a second part (the Bean picker: name, then roaster): the name
+   bold, the roaster regular, a touch larger than other fields. */
+.sel-val b,
+.sel-opt b {
+  font-weight: 700;
+}
+.sel-sub {
+  font-weight: 400;
+  color: var(--ink2);
+}
+.sel-btn:has(.sel-sub),
+.sel-list:has(.sel-sub) .sel-opt {
+  font-size: 17px;
+}
+
+/* A form in titled sections (the bean form): each group of fields on its own soft card. */
+.form-sec {
+  margin: 0 0 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+.form-sec > :last-child {
+  margin-bottom: 0;
+}
+.form-sec > h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+.form-sec > h3 svg {
+  color: var(--accent);
+}
+.form-sec .dates {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.form-sec .dates .dt-field {
+  width: 100%;
+  padding: 0 10px;
+  font-size: 14px;
+}
+@media (max-width: 420px) {
+  .form-sec .dates {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* The status it had before an unsaved change: a dashed outline. */
+.spath-step.was .spath-shape path {
+  stroke: var(--accent);
+  stroke-width: 2.4;
+  stroke-dasharray: 5 4;
+  stroke-linecap: round;
 }

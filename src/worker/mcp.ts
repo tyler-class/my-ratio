@@ -507,7 +507,7 @@ function buildServer(call: Call) {
     {
       title: 'List brews',
       description:
-        'Search the brew journal, newest first. Filter by bean, method, local date range (YYYY-MM-DD, inclusive), rated or unrated, minimum rating, or text in notes.',
+        'Search the brews, newest first. Filter by bean, method, local date range (YYYY-MM-DD, inclusive), rated or unrated, minimum rating, or text in notes.',
       inputSchema: z.object({
         bean: z.string().optional(),
         method: z.string().optional(),

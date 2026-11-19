@@ -208,7 +208,7 @@ export function Insights() {
     },
     {
       id: 'weekly',
-      icon: 'chart',
+      icon: 'dripper',
       title: 'Brews per week',
       sub: 'Last 12 weeks',
       size: 'half',
@@ -315,7 +315,7 @@ export function Insights() {
     },
     {
       id: 'dialin',
-      icon: 'clock',
+      icon: 'target',
       title: 'Dial-in accuracy',
       sub: 'Extraction labels by month',
       size: 'half',
@@ -336,7 +336,7 @@ export function Insights() {
     },
     {
       id: 'top',
-      icon: 'bag',
+      icon: 'star',
       title: 'Top bags',
       sub: 'Average brew rating, 2+ rated brews',
       size: 'half',

@@ -8,10 +8,14 @@ import { GRAIN_FILTER, MUG, MUG_DEFS, MUG_SILHOUETTE } from './logo-art';
 const TILE =
   '<linearGradient id="bg" x1="0" y1="64" x2="0" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#93461f"/><stop offset=".55" stop-color="#a4542a"/><stop offset="1" stop-color="#cf9358"/></linearGradient>';
 
+/** How far right of geometric centre the mug sits, in grid units, so it looks centred. */
+const NUDGE = 2.5;
+
 /** The logo on a 64-unit square: `rx` rounds the tile, `scale` shrinks the mug into its middle. */
 function svg(rx: number, scale = 1): string {
   const o = (64 - 64 * scale) / 2;
-  const t = scale === 1 ? '' : ` transform="translate(${o} ${o}) scale(${scale})"`;
+  // The body is heavier than the open handle, so true centre looks left: nudge the mug right.
+  const t = ` transform="translate(${o + NUDGE * scale} ${o}) scale(${scale})"`;
   return (
     '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">' +
     `<defs>${TILE}${MUG_DEFS}${GRAIN_FILTER}` +

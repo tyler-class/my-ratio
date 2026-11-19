@@ -1,4 +1,3 @@
-import { EXTRACTION, STRENGTH } from '@shared/lookups';
 import { timeLabel } from '@shared/logic/dates';
 import type { BrewView } from '@shared/logic/model';
 import { fmtN, tempOut } from '@shared/logic/units';
@@ -19,25 +18,17 @@ export function recipeLine(b: BrewView, s: Settings, withMethod = true): string 
   return bits.join(' · ');
 }
 
-export function BrewRow({
-  b,
-  s,
-  open,
-  onToggle,
-  showDate,
-}: {
-  b: BrewView;
-  s: Settings;
-  open: boolean;
-  onToggle: () => void;
-  showDate?: string;
-}) {
+/** A brew in a list: tap it to open the brew (rating, notes, Brew again, Delete). */
+export function BrewRow({ b, s, showDate }: { b: BrewView; s: Settings; showDate?: string }) {
   const sheets = useSheets();
-  const ex = EXTRACTION.find((e) => e.key === b.extraction);
-  const st = STRENGTH.find((e) => e.key === b.strength);
   return (
     <div className="ri">
-      <button type="button" className="rm" onClick={onToggle} aria-expanded={open}>
+      <button
+        type="button"
+        className="rm"
+        onClick={() => sheets.editBrew(b.id)}
+        aria-label={`Brew #${b.num}, ${b.beanName}`}
+      >
         <RB v={b.rating} />
         <div className="mid">
           <div className="t1">
@@ -51,39 +42,6 @@ export function BrewRow({
           <div>#{b.num}</div>
         </div>
       </button>
-      {open && (
-        <div className="rd">
-          {(ex || st) && (
-            <div className="tags">
-              {ex && <span className={'tag ' + ex.tone}>{ex.long}</span>}
-              {st && <span className="tag">{st.label}</span>}
-            </div>
-          )}
-          {b.tasting_notes && <div>{b.tasting_notes}</div>}
-          {b.next_time && (
-            <div className="callout">
-              <b>Next time</b>
-              {b.next_time}
-            </div>
-          )}
-          {b.recipe_notes && <div className="sub">Recipe: {b.recipe_notes}</div>}
-          <div className="flexrow">
-            <button type="button" className="btn sm" onClick={() => sheets.rate(b.id)}>
-              {b.rating == null ? 'Rate this brew' : 'Edit rating'}
-            </button>
-            <button
-              type="button"
-              className="btn sm"
-              onClick={() => sheets.log({ fromBrewId: b.id })}
-            >
-              Brew again
-            </button>
-            <button type="button" className="btn sm ghost" onClick={() => sheets.editBrew(b.id)}>
-              Edit
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

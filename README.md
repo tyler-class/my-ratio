@@ -27,7 +27,7 @@ One deployment is one coffee log.
 
 ## Screenshots
 
-![On a phone: the journal of brews, rating a brew with the Extraction slider, and every bag](docs/screenshots/phones.png)
+![On a phone: every brew, rating a brew with the Extraction slider, and every bag](docs/screenshots/phones.png)
 
 ### Logging a brew
 
@@ -35,11 +35,11 @@ Pick the bag and the last recipe is filled in, with your best one a tap away. Lo
 
 ![Logging a brew on a phone: last time and the best recipe for the bag, then grind, dose and a locked 1:17 ratio](docs/screenshots/log-a-brew.png)
 
-### Journal
+### Brews
 
-![The journal on a laptop: every brew by day, with rating, recipe, grinder and temperature](docs/screenshots/journal.png)
+![Brews on a laptop: every brew by day, with rating, recipe, grinder and temperature](docs/screenshots/journal.png)
 
-![Filters on a phone: the journal by rating and method, and beans by status, roaster and sort order](docs/screenshots/filters.png)
+![Filters on a phone: brews by rating and method, and beans by status, roaster and sort order](docs/screenshots/filters.png)
 
 ### Beans and roasters
 
@@ -212,7 +212,7 @@ Assistants get these tools:
 | `coffee_overview`               | What’s open, resting, frozen or coming; recent and unrated brews; stats; equipment; units          |
 | `get_started`                   | The log’s current state plus example requests and ready-made prompts                               |
 | `find_beans`, `get_bean`        | Search bags; one bag in full with dial-in table, best and last brew                                |
-| `list_brews`, `get_brew`        | Search the journal by bean, method, dates, rating or notes                                         |
+| `list_brews`, `get_brew`        | Search brews by bean, method, dates, rating or notes                                               |
 | `log_brew`                      | Log a brew; anything not given is copied from that bag’s last brew                                 |
 | `update_brew`, `delete_brew`    | Rate or fix a brew (“last”, “#392”); delete by number                                              |
 | `add_bean`, `update_bean`       | Add a bag (creating its roaster if new); move it along, mark buy-again, edit details               |

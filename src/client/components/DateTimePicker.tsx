@@ -169,27 +169,45 @@ export function DatePicker({
   onChange,
   label = 'Date',
   startOpen,
+  allowNone = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   label?: string;
   /** Show the calendar straight away. */
   startOpen?: boolean;
+  /** The date is optional: it can be empty ("Not set") and the calendar offers Clear. */
+  allowNone?: boolean;
 }) {
   return (
-    <Pop label={label} icon="cal" text={dateLabel(value)} startOpen={startOpen}>
-      <Calendar value={value} onPick={onChange} />
+    <Pop
+      label={label}
+      icon="cal"
+      text={value ? dateLabel(value) : 'Not set'}
+      muted={!value}
+      startOpen={startOpen}
+    >
+      <Calendar value={value} onPick={onChange} allowNone={allowNone} />
     </Pop>
   );
 }
 
-function Calendar({ value, onPick: pick }: { value: string; onPick: (v: string) => void }) {
+function Calendar({
+  value,
+  onPick: pick,
+  allowNone,
+}: {
+  value: string;
+  onPick: (v: string) => void;
+  allowNone?: boolean;
+}) {
   const close = useContext(CloseCtx);
   const onPick = (v: string) => {
     pick(v);
     close();
   };
-  const sel = parse(value);
+  // Nothing chosen yet: open on this month.
+  const sel = parse(value || todayKey());
   const [view, setView] = useState({ y: sel.y, m: sel.m });
   const today = todayKey();
   const first = new Date(view.y, view.m, 1).getDay();
@@ -258,6 +276,11 @@ function Calendar({ value, onPick: pick }: { value: string; onPick: (v: string) 
         <button type="button" className="cal-today" onClick={() => onPick(today)}>
           Today
         </button>
+        {allowNone && value && (
+          <button type="button" className="cal-today" onClick={() => onPick('')}>
+            Clear
+          </button>
+        )}
       </div>
     </div>
   );

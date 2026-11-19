@@ -24,7 +24,7 @@ const FILTERS: { k: string; label: string; name: string; f: (b: BeanView) => boo
     const st = statusOf(k)!;
     return {
       k,
-      label: `${st.icon} ${st.label}`,
+      label: st.label,
       name: st.label,
       f: (b: BeanView) => b.status === k,
     };

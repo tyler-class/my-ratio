@@ -1,7 +1,7 @@
 import { currencyForLocale } from '@shared/currency';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
-import { createBrowserRouter, RouterProvider } from 'react-router';
+import { createBrowserRouter, Navigate, RouterProvider, useLocation } from 'react-router';
 import { api, ApiError, onUnauthorized } from './lib/api';
 import { startPwa } from './lib/pwa';
 import { keys, useActions, useAppState } from './lib/queries';
@@ -10,7 +10,7 @@ import { SheetProvider } from './sheets/Sheets';
 import { Beans } from './routes/Beans';
 import { Home } from './routes/Home';
 import { Insights } from './routes/Insights';
-import { Journal } from './routes/Journal';
+import { Brews } from './routes/Brews';
 import { Layout } from './routes/Layout';
 import { Login, SetupNeeded } from './routes/Login';
 import { Settings } from './routes/Settings';
@@ -35,7 +35,9 @@ const router = createBrowserRouter([
     ),
     children: [
       { path: '/', element: <Home /> },
-      { path: '/journal', element: <Journal /> },
+      { path: '/brews', element: <Brews /> },
+      // The old address (bookmarks, notifications already sent).
+      { path: '/journal', element: <JournalRedirect /> },
       { path: '/beans', element: <Beans /> },
       { path: '/insights', element: <Insights /> },
       { path: '/settings', element: <Settings /> },
@@ -108,4 +110,10 @@ export function App() {
       </ToastProvider>
     </QueryClientProvider>
   );
+}
+
+/** /journal is now /brews: keep old links working, with their filters. */
+function JournalRedirect() {
+  const { search, hash } = useLocation();
+  return <Navigate to={`/brews${search}${hash}`} replace />;
 }

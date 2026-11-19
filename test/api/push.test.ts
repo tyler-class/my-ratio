@@ -488,7 +488,7 @@ describe('Ratio’s once-per-bag and evening notifications', () => {
     expect(await got()).toEqual([]);
     await run('2031-08-12T19:41Z');
     expect(await got()).toEqual([
-      'Rate your brew | 1 brew today isn’t rated yet. | /journal?rated=unrated',
+      'Rate your brew | 1 brew today isn’t rated yet. | /brews?rated=unrated',
     ]);
     await run('2031-08-12T21:41Z');
     expect(await got()).toEqual([]);
@@ -532,7 +532,7 @@ describe('Ratio’s once-per-bag and evening notifications', () => {
       .run();
     await run('2031-08-31T21:41Z');
     expect(await got()).toEqual([
-      'Rate your brew | 1 brew today isn’t rated yet. | /journal?rated=unrated',
+      'Rate your brew | 1 brew today isn’t rated yet. | /brews?rated=unrated',
     ]);
 
     await env.DB.batch([env.DB.prepare('DELETE FROM brews'), env.DB.prepare('DELETE FROM beans')]);

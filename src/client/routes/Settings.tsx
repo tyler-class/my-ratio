@@ -128,7 +128,7 @@ export function Settings() {
           />
         </div>
       </Section>
-      <Section title="Equipment" icon="coffee">
+      <Section title="Equipment" icon="espresso">
         <div className="fg">
           <label className="lbl">Brew methods</label>
           <TagInput

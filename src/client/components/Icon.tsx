@@ -18,6 +18,10 @@ const P = {
   bean: '<ellipse cx="12" cy="12" rx="6.5" ry="9.2" transform="rotate(45 12 12)"/><path d="M7.6 16.4c1.9-.6 3-1.8 3.6-3.4s1.3-3.4 3.4-4.6c.6-.4 1.2-.6 1.8-.8"/>',
   home: '<path d="M4 11l8-7 8 7"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  receipt:
+    '<path d="M6 3.5h12v17l-2.5-1.5-2 1.5-1.5-1.5-1.5 1.5-2-1.5L6 20.5z"/><path d="M9 8h6M9 11.5h6M9 15h3.5"/>',
+  snowflake:
+    '<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/><path d="M9.5 4.5L12 6l2.5-1.5M9.5 19.5L12 18l2.5 1.5M5 10.5l2.6-1.5-.1-2.9M19 13.5l-2.6 1.5.1 2.9M5 13.5l2.6 1.5-.1 2.9M19 10.5l-2.6-1.5.1-2.9"/>',
   more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
   users:
     '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14a6 6 0 0 1 3 6"/>',
@@ -45,6 +49,14 @@ const P = {
   archive:
     '<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  dripper:
+    '<path d="M4.5 5h15l-5 9.5h-5z"/><path d="M7 14.5h10M9 17.5h6"/><path d="M12 19.6v1.2"/>',
+  star: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
+  espresso:
+    '<rect x="4" y="3" width="16" height="5" rx="1.5"/><path d="M6 8v12.5M18 8v12.5M4 20.5h16"/><path d="M10 8v2h4V8M14 9.5h3"/><path d="M9.5 14.5h5V17a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2z"/><circle cx="8" cy="5.5" r=".6" fill="currentColor" stroke="none"/>',
+  drop: '<path d="M12 3.5c-3 4-6 7.2-6 10.5a6 6 0 0 0 12 0c0-3.3-3-6.5-6-10.5z"/>',
+  target:
+    '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>',
   // Dose and water held to the ratio (closed), or free (open).
   lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   unlock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.6-1.7"/>',
@@ -87,17 +99,49 @@ const P = {
 
 export type IconName = keyof typeof P;
 
+/**
+ * The main sections (Home, Brews, Beans, Insights, Settings) are speckled stoneware pieces on
+ * clay blobs, like the logo's mug (public/icons/). They're drawn a little larger than line
+ * icons so they read at the same weight.
+ */
+const CERAMIC: Partial<Record<IconName, string>> = {
+  home: '/icons/home.svg',
+  book: '/icons/brews.svg',
+  bean: '/icons/beans.svg',
+  chart: '/icons/insights.svg',
+  settings: '/icons/settings.svg',
+};
+export const isCeramic = (name: IconName) => name in CERAMIC;
+
 export function Icon({
   name,
   size = 18,
   className = '',
   strokeWidth = 1.6,
+  bare = false,
 }: {
   name: IconName;
   size?: number;
   className?: string;
   strokeWidth?: number;
+  /** The stoneware piece alone, without its clay blob (on a brown background already). */
+  bare?: boolean;
 }) {
+  const art = CERAMIC[name];
+  if (art) {
+    const px = Math.round(size * (bare ? 1.12 : 1.36));
+    return (
+      <img
+        src={bare ? art.replace('.svg', '-bare.svg') : art}
+        width={px}
+        height={px}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        className={`ceramic flex-none ${className}`}
+      />
+    );
+  }
   return (
     <svg
       width={size}

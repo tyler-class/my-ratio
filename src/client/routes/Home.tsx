@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Link } from 'react-router';
 import { STATUSES } from '@shared/lookups';
 import { dayKey, dayLabel, daysBetween, inDays, MO, parseDay, WD } from '@shared/logic/dates';
@@ -8,7 +7,8 @@ import { ellipsis, money } from '../lib/format';
 import { useActions, useModel } from '../lib/queries';
 import { BeanCard } from '../components/BeanCard';
 import { BrewRow } from '../components/BrewRow';
-import { Icon } from '../components/Icon';
+import { Icon, type IconName } from '../components/Icon';
+import { STATUS_ICON } from '../lib/statusIcons';
 import { Empty, Stat } from '../components/ui';
 import { useSheets } from '../sheets/context';
 
@@ -16,7 +16,6 @@ export function Home() {
   const data = useModel();
   const sheets = useSheets();
   const actions = useActions();
-  const [open, setOpen] = useState<string | null>(null);
   if (!data) return null;
   const { m, state } = data;
   const s = state.settings;
@@ -39,10 +38,12 @@ export function Home() {
   const needs = m.brews
     .filter((b) => b.rating == null && !b.rating_skipped && daysBetween(b.date, now) <= 7)
     .slice(0, 8);
-  const upRow = (id: string, icon: string, title: string, sub: string, roaster: string) => (
+  const upRow = (id: string, icon: IconName, title: string, sub: string, roaster: string) => (
     <div className="ri" key={id}>
       <button type="button" className="rm" onClick={() => sheets.bean(id)}>
-        <span style={{ fontSize: 22 }}>{icon}</span>
+        <span className="status-ic">
+          <Icon name={icon} size={20} />
+        </span>
         <div className="mid">
           <div className="t1">
             {title}
@@ -59,10 +60,7 @@ export function Home() {
       <div className="card hero">
         <div>
           <div className="sub">{`${WD[now.getDay()]}, ${MO[now.getMonth()]} ${now.getDate()}`}</div>
-          <h1 className="page-t">
-            <Icon name="home" size={26} />
-            {greet}
-          </h1>
+          <h1 className="page-t">{greet}</h1>
           <div className="sub" style={{ marginTop: 4 }}>
             {today.length === 0
               ? 'Nothing brewed yet today.'
@@ -125,7 +123,7 @@ export function Home() {
       <div className="sec">
         <div className="sec-h">
           <h2>
-            <Icon name="coffee" size={20} />
+            <Icon name="bean" size={20} />
             On the bar
           </h2>
           <Link className="more" to="/beans">
@@ -171,7 +169,7 @@ export function Home() {
               const x = b.rest_until ? daysBetween(now, parseDay(b.rest_until)) : null;
               return upRow(
                 b.id,
-                '💤',
+                STATUS_ICON.resting,
                 b.name,
                 x == null ? 'Resting' : x > 0 ? `Ready in ${inDays(x)}` : 'Ready to open',
                 b.roasterName,
@@ -198,7 +196,7 @@ export function Home() {
             )}
             {incoming.map((b) => {
               const st = STATUSES.find((x) => x.key === b.status)!;
-              return upRow(b.id, st.icon, b.name, st.label, b.roasterName);
+              return upRow(b.id, STATUS_ICON[st.key], b.name, st.label, b.roasterName);
             })}
           </div>
         </div>
@@ -211,8 +209,8 @@ export function Home() {
               <Icon name="book" size={20} />
               Recent brews
             </h2>
-            <Link className="more" to="/journal">
-              Journal
+            <Link className="more" to="/brews">
+              All brews
             </Link>
           </div>
           <div className="card flat" style={{ padding: '4px 16px' }}>
@@ -221,8 +219,6 @@ export function Home() {
                 key={b.id}
                 b={b}
                 s={s}
-                open={open === b.id}
-                onToggle={() => setOpen(open === b.id ? null : b.id)}
                 showDate={daysBetween(b.date, now) === 0 ? undefined : dayLabel(b.date, now)}
               />
             ))}

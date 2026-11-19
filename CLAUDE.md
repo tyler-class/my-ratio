@@ -67,7 +67,7 @@ Conventions for working on Ratio, shared with the owner's other self-hosted Clou
 
 ## Wording
 
-- Product nouns are capitalized ("Bags", "Roasters", "Journal"); group headings are plural.
+- Product nouns are capitalized ("Bags", "Roasters", "Brews"); group headings are plural.
 - Ranges of times read "9:00 to 9:04 AM", not with a dash.
 - Relative times are compact: "3h ago", "5m ago", "3d ago".
 

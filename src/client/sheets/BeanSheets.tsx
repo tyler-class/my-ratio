@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
-  BAG_PRESETS,
   BUY_AGAIN,
   COUNTRIES,
   EXTRACTION,
@@ -31,11 +30,15 @@ import {
   Select,
   Sheet,
   SlideToggle,
+  StatusPath,
   Stat,
 } from '../components/ui';
+import { DatePicker } from '../components/DateTimePicker';
+import { Icon, type IconName } from '../components/Icon';
+import { STATUS_ICON } from '../lib/statusIcons';
 import { useSheets } from './context';
 
-const statusOpts = STATUSES.map((s) => [s.key, `${s.icon} ${s.label}`] as const);
+const statusOpts = STATUSES.map((s) => [s.key, s.label, STATUS_ICON[s.key]] as const);
 
 export function BeanSheet({ m, s, beanId }: { m: Model; s: Settings; beanId: string }) {
   const b = m.beanMap.get(beanId);
@@ -103,7 +106,7 @@ export function BeanSheet({ m, s, beanId }: { m: Model; s: Settings; beanId: str
       }
     >
       <Field label="Status">
-        <SlideToggle label="Status" value={b.status} options={statusOpts} onChange={setStatus} />
+        <StatusPath label="Status" value={b.status} options={statusOpts} onChange={setStatus} />
       </Field>
       {b.status === 'finished' && (
         <Field label="Would you buy it again?">
@@ -158,12 +161,11 @@ export function BeanSheet({ m, s, beanId }: { m: Model; s: Settings; beanId: str
       )}
       <Field label="Roasted">
         <div className="flexrow">
-          <input
-            className="in"
-            type="date"
-            style={{ maxWidth: 190 }}
+          <DatePicker
+            allowNone
+            label="Roasted"
             value={b.roasted_on ?? ''}
-            onChange={(e) => actions.beans.update(b.id, { roasted_on: e.target.value || null })}
+            onChange={(v) => actions.beans.update(b.id, { roasted_on: v || null })}
           />
           {b.roasted_on && (
             <span className="sub">{agoLabel(daysBetween(parseDay(b.roasted_on), now))}</span>
@@ -172,12 +174,11 @@ export function BeanSheet({ m, s, beanId }: { m: Model; s: Settings; beanId: str
       </Field>
       {b.status === 'resting' && (
         <Field label="Rest until">
-          <input
-            className="in"
-            type="date"
-            style={{ maxWidth: 190 }}
+          <DatePicker
+            allowNone
+            label="Rest until"
             value={b.rest_until ?? ''}
-            onChange={(e) => actions.beans.update(b.id, { rest_until: e.target.value || null })}
+            onChange={(v) => actions.beans.update(b.id, { rest_until: v || null })}
           />
         </Field>
       )}
@@ -201,10 +202,9 @@ export function BeanSheet({ m, s, beanId }: { m: Model; s: Settings; beanId: str
           )}
         </Field>
       )}
-      <Field label="Notes on this bag">
+      <Field label="Comments">
         <NotesField
           value={notes}
-          placeholder="What you would tell future you"
           onChange={(e) => setNotes(e.target.value)}
           onBlur={() => notes !== (b.notes ?? '') && actions.beans.update(b.id, { notes })}
         />
@@ -255,7 +255,8 @@ export function BeanForm({ m, s, beanId }: { m: Model; s: Settings; beanId?: str
     process: b?.process ?? '',
     process_notes: b?.process_notes ?? '',
     region: b?.region ?? '',
-    altitude: b?.altitude ?? '',
+    // Just the number: the label says MASL (older entries carried it in the value).
+    altitude: (b?.altitude ?? '').replace(/\s*m\.?\s*a\.?\s*s\.?\s*l\.?\s*$/i, ''),
     roasted_on: b?.roasted_on ?? '',
     received_on: b?.received_on ?? '',
     rest_until: b?.rest_until ?? '',
@@ -345,120 +346,142 @@ export function BeanForm({ m, s, beanId }: { m: Model; s: Settings; beanId?: str
         </>
       }
     >
-      <Field label="Name">
-        <input
-          className="in"
-          value={f.name}
-          placeholder="Finca Chilamate"
-          onChange={(e) => set({ name: e.target.value })}
-        />
-      </Field>
-      <Field label="Roaster">
-        <Select
-          value={f.roaster}
-          onChange={(v) => set({ roaster: v })}
-          groups={[
-            { options: m.roasters.map((r) => ({ value: r.id, label: r.name })) },
-            { options: [{ value: '__new', label: '+ New roaster' }] },
-          ]}
-        />
-        {f.roaster === '__new' && (
-          <input
-            className="in"
-            style={{ marginTop: 8 }}
-            value={f.newRoaster}
-            placeholder="Roaster name"
-            onChange={(e) => set({ newRoaster: e.target.value })}
-          />
-        )}
-      </Field>
       <Field label="Status">
-        <SlideToggle
+        <StatusPath
           label="Status"
           value={f.status}
+          from={b?.status}
           options={statusOpts}
           onChange={(status) => set({ status })}
         />
       </Field>
-      <div className="three fg">
-        <div>
-          <label className="lbl">Bag (g)</label>
+      <FormSection icon="coffee" title="The coffee">
+        <Field label="Name">
           <input
             className="in"
-            inputMode="decimal"
-            value={f.bag}
-            placeholder="250"
-            onChange={(e) => set({ bag: e.target.value })}
-          />
-        </div>
-        <div>
-          <label className="lbl">Cost ({currencySymbol(s.currency)})</label>
-          <input
-            className="in"
-            inputMode={currencyDigits(s.currency) ? 'decimal' : 'numeric'}
-            value={f.cost}
-            placeholder={currencyDigits(s.currency) ? '22.00' : '3000'}
-            onChange={(e) => set({ cost: e.target.value })}
-          />
-        </div>
-        <div>
-          <label className="lbl">Roasted</label>
-          <input
-            className="in"
-            type="date"
-            value={f.roasted_on}
-            onChange={(e) => set({ roasted_on: e.target.value })}
-          />
-        </div>
-      </div>
-      <div className="seg fg" style={{ marginTop: -6 }}>
-        {BAG_PRESETS.map((g) => (
-          <button
-            key={g}
-            type="button"
-            className="chip sm"
-            aria-pressed={f.bag === String(g)}
-            onClick={() => set({ bag: String(g) })}
-          >
-            {g} g
-          </button>
-        ))}
-      </div>
-      <Field label="Origin">
-        <TagPicker
-          value={f.origins}
-          options={countries}
-          decorate={(c) => `${flagFor(c)} ${c}`.trim()}
-          onChange={(origins) => set({ origins })}
-        />
-      </Field>
-      <Field label="Process">
-        <ChoiceInput
-          small
-          options={processes}
-          value={f.process}
-          onChange={(v) => set({ process: v })}
-        />
-      </Field>
-      <Field label="Roaster tasting notes">
-        <input
-          className="in"
-          value={f.tasting}
-          placeholder="Cassis, cantaloupe, jammy"
-          onChange={(e) => set({ tasting: e.target.value })}
-        />
-      </Field>
-      <details className="fg" open={!!b}>
-        <summary className="sub" style={{ cursor: 'pointer', marginBottom: 12 }}>
-          More details
-        </summary>
-        <Field label="Region / farm">
-          <input
-            className="in"
-            value={f.region}
-            onChange={(e) => set({ region: e.target.value })}
+            value={f.name}
+            placeholder="Finca Chilamate"
+            onChange={(e) => set({ name: e.target.value })}
           />
         </Field>
+        <Field label="Roaster">
+          <Select
+            value={f.roaster}
+            onChange={(v) => set({ roaster: v })}
+            groups={[
+              { options: m.roasters.map((r) => ({ value: r.id, label: r.name })) },
+              { options: [{ value: '__new', label: '+ New roaster' }] },
+            ]}
+          />
+          {f.roaster === '__new' && (
+            <input
+              className="in"
+              style={{ marginTop: 8 }}
+              value={f.newRoaster}
+              placeholder="Roaster name"
+              onChange={(e) => set({ newRoaster: e.target.value })}
+            />
+          )}
+        </Field>
+        <Field label="Roaster’s tasting notes">
+          <input
+            className="in"
+            value={f.tasting}
+            placeholder="Cassis, cantaloupe, jammy"
+            onChange={(e) => set({ tasting: e.target.value })}
+          />
+        </Field>
+        <Field label="Roaster’s description">
+          <NotesField
+            value={f.roaster_notes}
+            onChange={(e) => set({ roaster_notes: e.target.value })}
+          />
+        </Field>
+      </FormSection>
+
+      <FormSection icon="bag" title="The bag">
+        <div className="two fg">
+          <div>
+            <label className="lbl">Bag (g)</label>
+            <input
+              className="in"
+              inputMode="decimal"
+              value={f.bag}
+              placeholder="250"
+              onChange={(e) => set({ bag: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="lbl">Cost ({currencySymbol(s.currency)})</label>
+            <input
+              className="in"
+              inputMode={currencyDigits(s.currency) ? 'decimal' : 'numeric'}
+              value={f.cost}
+              placeholder={currencyDigits(s.currency) ? '22.00' : '3000'}
+              onChange={(e) => set({ cost: e.target.value })}
+            />
+          </div>
+        </div>
+        <div className="dates fg">
+          <div>
+            <label className="lbl">Roasted</label>
+            <DatePicker
+              allowNone
+              label="Roasted"
+              value={f.roasted_on}
+              onChange={(v) => set({ roasted_on: v })}
+            />
+          </div>
+          <div>
+            <label className="lbl">Received</label>
+            <DatePicker
+              allowNone
+              label="Received"
+              value={f.received_on}
+              onChange={(v) => set({ received_on: v })}
+            />
+          </div>
+          <div>
+            <label className="lbl">Rest until</label>
+            <DatePicker
+              allowNone
+              label="Rest until"
+              value={f.rest_until}
+              onChange={(v) => set({ rest_until: v })}
+            />
+          </div>
+        </div>
+      </FormSection>
+
+      <FormSection icon="map" title="Origin">
+        <Field label="Origin">
+          <TagPicker
+            value={f.origins}
+            options={countries}
+            decorate={(c) => `${flagFor(c)} ${c}`.trim()}
+            onChange={(origins) => set({ origins })}
+          />
+        </Field>
+        <div className="two fg">
+          <div>
+            <label className="lbl">Region / farm</label>
+            <input
+              className="in"
+              value={f.region}
+              onChange={(e) => set({ region: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="lbl">Altitude (MASL)</label>
+            <input
+              className="in"
+              inputMode="numeric"
+              value={f.altitude}
+              placeholder="1900"
+              onChange={(e) => set({ altitude: e.target.value })}
+            />
+          </div>
+        </div>
         <Field label="Variety">
           <TagPicker
             value={f.varieties}
@@ -466,58 +489,53 @@ export function BeanForm({ m, s, beanId }: { m: Model; s: Settings; beanId?: str
             onChange={(varieties) => set({ varieties })}
           />
         </Field>
-        <div className="two fg">
-          <div>
-            <label className="lbl">Altitude</label>
-            <input
-              className="in"
-              value={f.altitude}
-              placeholder="1,900 MASL"
-              onChange={(e) => set({ altitude: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="lbl">Process notes</label>
-            <input
-              className="in"
-              value={f.process_notes}
-              onChange={(e) => set({ process_notes: e.target.value })}
-            />
-          </div>
-        </div>
-        <div className="two fg">
-          <div>
-            <label className="lbl">Received</label>
-            <input
-              className="in"
-              type="date"
-              value={f.received_on}
-              onChange={(e) => set({ received_on: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="lbl">Rest until</label>
-            <input
-              className="in"
-              type="date"
-              value={f.rest_until}
-              onChange={(e) => set({ rest_until: e.target.value })}
-            />
-          </div>
-        </div>
-        <Field label="Roaster’s description">
-          <NotesField
-            value={f.roaster_notes}
-            onChange={(e) => set({ roaster_notes: e.target.value })}
+      </FormSection>
+
+      <FormSection icon="drop" title="Process">
+        <Field label="Process">
+          <ChoiceInput
+            small
+            options={processes}
+            value={f.process}
+            onChange={(v) => set({ process: v })}
           />
         </Field>
-      </details>
-      {b && (
-        <Field label="Photos">
-          <Photos owner="beans" ownerId={b.id} images={b.images} />
+        <Field label="Process notes">
+          <input
+            className="in"
+            value={f.process_notes}
+            onChange={(e) => set({ process_notes: e.target.value })}
+          />
         </Field>
+      </FormSection>
+
+      {b && (
+        <FormSection icon="camera" title="Photos">
+          <Photos owner="beans" ownerId={b.id} images={b.images} />
+        </FormSection>
       )}
     </Sheet>
+  );
+}
+
+/** A titled group of fields in a form, on its own card. */
+function FormSection({
+  icon,
+  title,
+  children,
+}: {
+  icon: IconName;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="form-sec">
+      <h3>
+        <Icon name={icon} size={17} />
+        {title}
+      </h3>
+      {children}
+    </section>
   );
 }
 
