@@ -1,3 +1,4 @@
+import type { GrindScale } from './grind';
 import type { BeanEvent } from './logic/timeline';
 import type { BeanStatus, BuyAgain, Extraction, Strength } from './lookups';
 
@@ -57,6 +58,8 @@ export interface Brew {
   method: string | null;
   grinder: string | null;
   grind: number | null;
+  /** A write-in grinder's setting, as written; the grind number is null then. */
+  grind_text: string | null;
   dose_g: number | null;
   water_ml: number | null;
   water_temp_c: number | null;
@@ -90,6 +93,8 @@ export interface Settings {
   updates_set_up: boolean;
   /** Emoji chosen for origins that aren't a known country (known ones show their flag). */
   origin_emojis: Record<string, string>;
+  /** Each grinder's own grind scale, where the owner set one (else its preset, see grind.ts). */
+  grind_scales: Record<string, GrindScale>;
 }
 
 export interface InsightsPanel {

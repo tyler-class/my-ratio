@@ -25,4 +25,26 @@ describe('backup', () => {
 
     expect((await api.post('/import', { format: 'duffel' })).status).toBe(400);
   });
+
+  it('maps the old strength words from older backups and clients', async () => {
+    const api = await session();
+    const b = (await api.post<Bean>('/beans', { name: 'Strength Bean' })).data;
+    // An older client still sending the retired words.
+    const w = await api.post<Brew>('/brews', {
+      bean_id: b.id,
+      dose_g: 15,
+      water_ml: 250,
+      strength: 'watery',
+    });
+    expect(w.data.strength).toBe('weak');
+    const exp = (await api.get<RatioExport>('/export')).data;
+    const rows = exp.tables.brews!.map((r) =>
+      r.id === w.data.id ? { ...r, strength: 'muddy' } : r,
+    );
+    expect(
+      (await api.post('/import', { ...exp, tables: { ...exp.tables, brews: rows } })).status,
+    ).toBe(200);
+    const after = (await api.get<AppState>('/state')).data;
+    expect(after.brews.find((x) => x.id === w.data.id)!.strength).toBe('strong');
+  });
 });

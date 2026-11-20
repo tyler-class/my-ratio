@@ -1,3 +1,4 @@
+import { grindLabel } from '@shared/grind';
 import { useState } from 'react';
 import { EXTRACTION } from '@shared/lookups';
 import { daysBetween, MO, startOfDay } from '@shared/logic/dates';
@@ -445,7 +446,7 @@ export function Insights() {
                   <div className="t2">
                     {b.method ? b.method + ' · ' : ''}
                     {fmtN(b.dose_g)} g → {b.water_ml != null ? Math.round(b.water_ml) : '–'} mL ·
-                    grind {fmtN(b.grind)}
+                    grind {grindLabel(b, state.settings.grind_scales) ?? '–'}
                   </div>
                 </div>
               </button>

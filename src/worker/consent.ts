@@ -60,7 +60,7 @@ ${info.loopback ? '<p class="warn">This sends access to an app on your computer.
 <input type="hidden" name="client_domain" value="${esc(info.clientDomain ?? '')}">
 <input type="hidden" name="redirect_host" value="${esc(info.redirectHost)}">
 <input type="hidden" name="loopback" value="${info.loopback ? '1' : ''}">
-<label for="pw">Household password</label>
+<label for="pw">Password</label>
 <input id="pw" name="password" type="password" autocomplete="current-password" autofocus>
 ${error ? `<p class="err" role="alert">${esc(error)}</p>` : ''}
 <div class="row" style="margin-top:18px"><button class="allow" name="decision" value="approve">Allow</button><button class="deny" name="decision" value="deny">Cancel</button></div>

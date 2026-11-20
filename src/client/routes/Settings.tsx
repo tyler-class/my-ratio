@@ -2,6 +2,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { EXAMPLE_PROMPTS } from '@shared/examples';
 import { DEFAULT_METHODS } from '@shared/lookups';
+import { GrindScales } from '../components/GrindScales';
+import { byName } from '@shared/grind';
 import { api, errorMessage } from '../lib/api';
 import { useActions, useModel } from '../lib/queries';
 import { useTheme } from '../lib/theme';
@@ -17,7 +19,7 @@ import {
   SlideToggle,
   Select,
   Switch,
-  TagInput,
+  MultiSelect,
 } from '../components/ui';
 import { CURRENCIES } from '@shared/currency';
 import { currencySymbol } from '../lib/format';
@@ -45,6 +47,17 @@ import {
   type PushState,
 } from '../kit/push';
 import { BADGE_MEANS, NOTIFY_KINDS } from '@shared/logic/notify';
+
+const METHOD_SUGGESTIONS = [
+  ...DEFAULT_METHODS,
+  'Chemex',
+  'Kalita Wave',
+  'French Press',
+  'Moka Pot',
+  'Origami',
+  'Orea',
+  'Switch',
+];
 
 /** What the usage counts count, in words (matches USAGE_TABLES in the worker). */
 const USAGE_COUNTED = 'roasters, beans, brews and photos';
@@ -131,39 +144,16 @@ export function Settings() {
       <Section title="Equipment" icon="espresso">
         <div className="fg">
           <label className="lbl">Brew methods</label>
-          <TagInput
-            value={s.methods}
-            suggestions={[
-              ...DEFAULT_METHODS,
-              'Chemex',
-              'Kalita Wave',
-              'French Press',
-              'Moka Pot',
-              'Origami',
-              'Orea',
-              'Switch',
-            ]}
-            placeholder="Add a method"
-            onChange={(methods) => actions.saveSettings({ methods })}
+          <MultiSelect
+            label="Brew methods"
+            placeholder="Choose methods"
+            value={byName(s.methods)}
+            options={byName(METHOD_SUGGESTIONS)}
+            onChange={(methods) => actions.saveSettings({ methods: byName(methods) })}
           />
         </div>
-        <div>
-          <label className="lbl">Grinders</label>
-          <TagInput
-            value={s.grinders}
-            suggestions={[
-              'Fellow Ode',
-              'Fellow Opus',
-              'Baratza Encore',
-              'Comandante C40',
-              '1Zpresso J-Max',
-              'Niche Zero',
-              'DF64',
-            ]}
-            placeholder="Add a grinder"
-            onChange={(grinders) => actions.saveSettings({ grinders })}
-          />
-        </div>
+        <label className="lbl">Grinders</label>
+        <GrindScales grinders={s.grinders} scales={s.grind_scales} onSave={actions.saveSettings} />
       </Section>
       <Notifications />
       <ConnectAI />

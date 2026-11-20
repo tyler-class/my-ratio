@@ -1,7 +1,7 @@
 // Fixed vocabularies and suggestion lists. Free-text fields (method, grinder, process,
 // origins, varieties) accept anything; these lists only seed the pickers.
 
-export type Tone = 'good' | 'warn' | 'bad' | 'blue';
+export type Tone = 'good' | 'warn' | 'bad' | 'blue' | 'gray' | 'orange';
 
 export const STATUSES = [
   { key: 'ordered', label: 'Ordered', icon: '🧾' },
@@ -32,7 +32,7 @@ export const EXTRACTION = [
     key: 'uneven',
     label: 'Uneven',
     long: 'Uneven',
-    tone: 'blue',
+    tone: 'gray',
     tip: 'Pour slower and more evenly.',
   },
 ] as const satisfies readonly {
@@ -46,12 +46,15 @@ export type Extraction = (typeof EXTRACTION)[number]['key'];
 export const EXTRACTION_KEYS = EXTRACTION.map((e) => e.key) as [Extraction, ...Extraction[]];
 
 export const STRENGTH = [
-  { key: 'watery', label: 'Watery' },
-  { key: 'balanced', label: 'Balanced' },
-  { key: 'muddy', label: 'Muddy' },
-] as const;
+  { key: 'weak', label: 'Weak', tone: 'warn' },
+  { key: 'balanced', label: 'Balanced', tone: 'good' },
+  { key: 'strong', label: 'Strong', tone: 'orange' },
+] as const satisfies readonly { key: string; label: string; tone: Tone }[];
 export type Strength = (typeof STRENGTH)[number]['key'];
 export const STRENGTH_KEYS = STRENGTH.map((s) => s.key) as [Strength, ...Strength[]];
+/** "watery" and "muddy" were retired in v1.1.1 (migration 0005); old backups and clients map. */
+export const normalizeStrength = (v: unknown) =>
+  v === 'watery' ? 'weak' : v === 'muddy' ? 'strong' : v;
 
 export const BUY_AGAIN = [
   { key: 'definitely', label: 'Definitely', tone: 'good' },

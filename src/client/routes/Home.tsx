@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { STATUSES } from '@shared/lookups';
+import { STATUSES, type BeanStatus } from '@shared/lookups';
 import { dayKey, dayLabel, daysBetween, inDays, MO, parseDay, WD } from '@shared/logic/dates';
 import { mean } from '@shared/logic/model';
 import { fmtN, r1 } from '@shared/logic/units';
@@ -7,7 +7,7 @@ import { ellipsis, money } from '../lib/format';
 import { useActions, useModel } from '../lib/queries';
 import { BeanCard } from '../components/BeanCard';
 import { BrewRow } from '../components/BrewRow';
-import { Icon, type IconName } from '../components/Icon';
+import { Icon } from '../components/Icon';
 import { STATUS_ICON } from '../lib/statusIcons';
 import { Empty, Stat } from '../components/ui';
 import { useSheets } from '../sheets/context';
@@ -38,12 +38,10 @@ export function Home() {
   const needs = m.brews
     .filter((b) => b.rating == null && !b.rating_skipped && daysBetween(b.date, now) <= 7)
     .slice(0, 8);
-  const upRow = (id: string, icon: IconName, title: string, sub: string, roaster: string) => (
+  const upRow = (id: string, st: BeanStatus, title: string, sub: string, roaster: string) => (
     <div className="ri" key={id}>
       <button type="button" className="rm" onClick={() => sheets.bean(id)}>
-        <span className="status-ic">
-          <Icon name={icon} size={20} />
-        </span>
+        <StatusDot status={st} />
         <div className="mid">
           <div className="t1">
             {title}
@@ -97,7 +95,7 @@ export function Home() {
         <div className="sec">
           <div className="sec-h">
             <h2>
-              <Icon name="smile" size={20} />
+              <Icon name="star" size={20} />
               Waiting for a rating
             </h2>
             <button
@@ -169,7 +167,7 @@ export function Home() {
               const x = b.rest_until ? daysBetween(now, parseDay(b.rest_until)) : null;
               return upRow(
                 b.id,
-                STATUS_ICON.resting,
+                'resting',
                 b.name,
                 x == null ? 'Resting' : x > 0 ? `Ready in ${inDays(x)}` : 'Ready to open',
                 b.roasterName,
@@ -182,7 +180,7 @@ export function Home() {
                   to="/beans?f=freezing"
                   style={{ color: 'inherit', textDecoration: 'none' }}
                 >
-                  <span style={{ fontSize: 22 }}>❄️</span>
+                  <StatusDot status="freezing" />
                   <div className="mid">
                     <div className="t1">
                       {freezer.length} {freezer.length === 1 ? 'bag' : 'bags'} in the freezer
@@ -196,7 +194,7 @@ export function Home() {
             )}
             {incoming.map((b) => {
               const st = STATUSES.find((x) => x.key === b.status)!;
-              return upRow(b.id, STATUS_ICON[st.key], b.name, st.label, b.roasterName);
+              return upRow(b.id, st.key, b.name, st.label, b.roasterName);
             })}
           </div>
         </div>
@@ -226,5 +224,14 @@ export function Home() {
         </div>
       )}
     </div>
+  );
+}
+
+/** A bag's status in its timeline circle (the same colours as the bag's Timeline). */
+function StatusDot({ status }: { status: BeanStatus }) {
+  return (
+    <span className={`st-dot s-${status}`}>
+      <Icon name={STATUS_ICON[status]} size={17} />
+    </span>
   );
 }

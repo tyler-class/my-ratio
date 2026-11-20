@@ -240,7 +240,7 @@ describe('MCP', () => {
       logged: {
         num: number;
         bean: string;
-        grind: number;
+        grind: string;
         dose_g: number;
         water_ml: number;
         rating: number;
@@ -251,7 +251,8 @@ describe('MCP', () => {
     expect(second.error).toBeNull();
     expect(second.data.logged).toMatchObject({
       bean: 'Kenya Gachatha AA',
-      grind: 6.2,
+      // As written on the Ode's dial.
+      grind: '6.2',
       dose_g: 20,
       water_ml: 320,
       rating: 8,
@@ -265,12 +266,13 @@ describe('MCP', () => {
       rating: 7.5,
     });
     expect(rated.data.updated.rating).toBe(7.5);
-    const fixed = await tool<{ updated: { grind: number; when: string } }>(t, 'update_brew', {
+    const fixed = await tool<{ updated: { grind: string; when: string } }>(t, 'update_brew', {
       brew: 'last',
-      grind: 6,
+      // Not a setting the Ode has: it lands on the nearest one.
+      grind: 6.4,
       brewed_at: '2026-11-04 07:15',
     });
-    expect(fixed.data.updated.grind).toBe(6);
+    expect(fixed.data.updated.grind).toBe('6.2');
     expect(fixed.data.updated.when).toContain('7:15');
 
     const brews = await tool<{ count: number; avg_rating: number }>(t, 'list_brews', {

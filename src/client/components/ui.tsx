@@ -121,6 +121,17 @@ function useClosed(open: boolean, onClose?: () => void) {
  * a search box filters the list, each tap adds or removes one, and a name that isn't listed can
  * be added. Closes on a tap outside or Escape.
  */
+/**
+ * When a dropdown opens, scroll the page (or the sheet it's in) just enough to show all of it:
+ * nothing hidden under the phone's tab bar, where a tap would land on the bar instead.
+ * (.sel-list's scroll margins keep it clear of the bar.)
+ */
+function useRevealList(open: boolean, list: React.RefObject<HTMLElement | null>) {
+  useLayoutEffect(() => {
+    if (open) list.current?.scrollIntoView({ block: 'nearest' });
+  }, [open, list]);
+}
+
 export function MultiSelect({
   value,
   options,
@@ -148,6 +159,9 @@ export function MultiSelect({
   useClosed(open, onClose);
   const [q, setQ] = useState('');
   const root = useRef<HTMLDivElement>(null);
+  const search = useRef<HTMLInputElement>(null);
+  const listEl = useRef<HTMLDivElement>(null);
+  useRevealList(open, listEl);
   useEffect(() => {
     if (!open) return;
     const away = (e: PointerEvent) => {
@@ -208,16 +222,18 @@ export function MultiSelect({
       </div>
       {open && (
         <div
+          ref={listEl}
           className="sel-list msel-list"
           role="listbox"
           aria-multiselectable={!single}
           aria-label={label}
         >
           <input
+            ref={search}
             className="in msel-q"
             autoFocus
             value={q}
-            placeholder="Search"
+            placeholder="Search or add new"
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
@@ -235,30 +251,36 @@ export function MultiSelect({
               }
             }}
           />
-          {shown.map((o) => (
-            <button
-              key={o}
-              type="button"
-              role="option"
-              aria-selected={value.includes(o)}
-              className="sel-opt"
-              onClick={() => toggle(o)}
-            >
-              <span>{decorate(o)}</span>
-              {value.includes(o) && <Icon name="check" size={16} />}
-            </button>
-          ))}
-          {needle && !exact && (
+          {/* Only the options scroll: the search box and Add new stay put, over nothing. */}
+          <div className="msel-opts">
+            {shown.map((o) => (
+              <button
+                key={o}
+                type="button"
+                role="option"
+                aria-selected={value.includes(o)}
+                className="sel-opt"
+                onClick={() => toggle(o)}
+              >
+                <span>{decorate(o)}</span>
+                {value.includes(o) && <Icon name="check" size={16} />}
+              </button>
+            ))}
+          </div>
+          {/* Pinned at the bottom: adds what's typed, or (nothing typed yet) goes to the search
+              box to type a new one. */}
+          {!exact && (
             <button
               type="button"
               className="sel-opt msel-add"
               onClick={() => {
+                if (!needle) return search.current?.focus();
                 toggle(q.trim());
                 setQ('');
               }}
             >
-              <span>Add “{q.trim()}”</span>
               <Icon name="plus" size={16} />
+              <span>{needle ? `Add “${q.trim()}”` : 'Add new'}</span>
             </button>
           )}
         </div>
@@ -291,6 +313,7 @@ export function Select({
   const root = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const listId = useId();
+  useRevealList(open, list);
   const flat = groups.flatMap((g) => g.options);
   const current = flat.find((o) => o.value === value);
 
@@ -761,7 +784,7 @@ type SlideToggleProps<T extends string> = {
  * A few options as one sliding toggle: the thumb slides to the chosen one. Options share the
  * width equally; one whose label needs more room grows to fit it, and when they can't all fit
  * the toggle scrolls sideways. The thumb is measured from the chosen option. An option with a
- * tone (good, warn, bad, blue) tints the thumb and its label when chosen; others use the accent.
+ * tone (good, warn, bad, blue, gray, orange) tints the thumb and its label when chosen; others use the accent.
  */
 /** A titled group of fields in a form, on its own card. */
 export function FormSection({

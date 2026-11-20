@@ -2,6 +2,7 @@
 import { BACKFILL_TIMELINE } from '../timeline';
 import { Hono } from 'hono';
 import { settingsPatch } from '@shared/schemas';
+import { normalizeStrength } from '@shared/lookups';
 import {
   EXPORT_FORMAT,
   EXPORT_VERSION,
@@ -68,7 +69,12 @@ export async function importAll(db: D1Database, data: RatioExport) {
   for (const t of TABLE_ORDER) {
     for (const row of data.tables[t] ?? []) {
       if (t === 'settings' && PRIVATE_SETTINGS.includes(String(row.key))) continue;
-      const { cols, vals } = rowValues(t, row);
+      // Backups from before v1.1.1 carry the old strength words.
+      const fixed: ExportRow =
+        t === 'brews'
+          ? { ...row, strength: normalizeStrength(row.strength) as ExportRow[string] }
+          : row;
+      const { cols, vals } = rowValues(t, fixed);
       if (!cols.length) continue;
       stmts.push(
         db

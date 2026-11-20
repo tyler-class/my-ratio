@@ -1,3 +1,4 @@
+import { describeScale, grindLabel, scaleFor, snapGrind, type GrindScale } from '@shared/grind';
 import { restInfo } from '@shared/logic/timeline';
 // MCP server: lets any MCP-capable assistant read the coffee log and log, rate and edit
 // brews, bags and roasters in plain language. Tools call the same REST API the app uses
@@ -11,6 +12,7 @@ import {
   EXTRACTION_KEYS,
   LIVE_STATUSES,
   normalizeStatus,
+  normalizeStrength,
   STATUS_KEYS,
   STRENGTH_KEYS,
   type BeanStatus,
@@ -139,6 +141,21 @@ function fmtTemp(c: number | null, s: Settings) {
   return v == null ? null : `${v}°${s.temp_unit}`;
 }
 
+/** A grind setting for a grinder: text on a write-in grinder, else the nearest step on its dial. */
+function grindFor(
+  grinder: string | null | undefined,
+  g: number | string | null | undefined,
+  scales: Record<string, GrindScale>,
+): { grind: number | null; grind_text: string | null } {
+  if (g == null || g === '') return { grind: null, grind_text: null };
+  const sc = scaleFor(grinder, scales);
+  if (sc.kind === 'text') return { grind: null, grind_text: String(g).slice(0, 40) };
+  const n = typeof g === 'number' ? g : Number(String(g).trim());
+  if (!Number.isFinite(n))
+    throw new ToolError(`${grinder ?? 'That grinder'} takes a number: ${describeScale(sc)}.`);
+  return { grind: snapGrind(n, sc), grind_text: null };
+}
+
 function brewOut(b: BrewView, c: Ctx, full = false) {
   return {
     id: b.id,
@@ -148,7 +165,7 @@ function brewOut(b: BrewView, c: Ctx, full = false) {
     roaster: b.roasterName || null,
     method: b.method,
     grinder: b.grinder,
-    grind: b.grind,
+    grind: grindLabel(b, c.s.grind_scales),
     dose_g: b.dose_g,
     water_ml: b.water_ml,
     ratio: b.ratio ? `1:${r1(b.ratio)}` : null,
@@ -239,7 +256,7 @@ function beanDetail(b: BeanView, c: Ctx, brewLimit: number) {
     currency: c.s.currency,
     cost_per_cup: perCup != null ? Math.round(perCup * 100) / 100 : null,
     photos: b.images.length,
-    dial_in: grindTable(b)
+    dial_in: grindTable(b, c.s.grind_scales)
       .slice(0, 6)
       .map((g) => ({ grind: g.grind, avg_rating: r1(g.avg), brews: g.n })),
     best_brew: b.best ? brewOut(b.best, c) : null,
@@ -370,7 +387,14 @@ function buildServer(call: Call) {
         today: c.today,
         time_zone: c.tz,
         units: { temperature: `°${c.s.temp_unit}`, dose: 'g', water: 'mL', currency: c.s.currency },
-        equipment: { methods: c.s.methods, grinders: c.s.grinders },
+        equipment: {
+          methods: c.s.methods,
+          grinders: c.s.grinders,
+          // Each grinder's dial: grind settings must be one of its steps.
+          grind_scales: Object.fromEntries(
+            c.s.grinders.map((g) => [g, describeScale(scaleFor(g, c.s.grind_scales))]),
+          ),
+        },
         stats: {
           brews_today: m.brews.filter((b) => dayIn(b.date, c.tz) === c.today).length,
           brews_7_days: m.brews.filter((b) => inDays(b, 6)).length,
@@ -739,7 +763,12 @@ function buildServer(call: Call) {
   const brewFields = {
     method: z.string().optional().describe('e.g. V60, Espresso; see coffee_overview equipment'),
     grinder: z.string().optional(),
-    grind: z.number().optional().describe('Grinder setting'),
+    grind: z
+      .union([z.number(), z.string()])
+      .optional()
+      .describe(
+        'Grind setting on that grinder’s scale (see grind_scales in coffee_overview): a number, or the written setting for a write-in grinder',
+      ),
     dose_g: z.number().positive().optional(),
     water_ml: z.number().positive().optional(),
     ratio: z
@@ -753,7 +782,9 @@ function buildServer(call: Call) {
     recipe_notes: z.string().optional().describe('Pour schedule, bloom, total time…'),
     rating: z.number().min(0).max(10).optional(),
     extraction: z.enum(EXTRACTION_KEYS).optional(),
-    strength: z.enum(STRENGTH_KEYS).optional().describe('How strong it tasted'),
+    strength: z
+      .preprocess(normalizeStrength, z.enum(STRENGTH_KEYS).optional())
+      .describe('How strong it tasted: weak, balanced or strong'),
     tasting_notes: z.string().optional().describe('How it tasted'),
     next_time: z.string().optional().describe('What to change next time'),
     brewed_at: z.string().optional().describe('Local "YYYY-MM-DD HH:mm" or ISO; defaults to now'),
@@ -784,13 +815,19 @@ function buildServer(call: Call) {
       if (a.dose_g == null && a.water_ml != null && a.ratio)
         dose = Math.round((a.water_ml / a.ratio) * 10) / 10;
       if (water == null) water = base?.water_ml ?? null;
+      const grinder = a.grinder ?? base?.grinder ?? c.s.grinders[0] ?? null;
+      // A grind setting from another bag (or another grinder's dial) is a guess at best; only
+      // carry it within a bag on the same grinder. A given setting lands on the grinder's dial.
+      const same = sameBag && base?.grinder === grinder;
+      const g = a.grind ?? (same ? (base?.grind_text ?? base?.grind) : null) ?? null;
+      const { grind, grind_text } = grindFor(grinder, g, c.s.grind_scales);
       const brew = await call<Brew>('POST', '/brews', {
         bean_id: bean.id,
         brewed_at: brewedAt(c, a.brewed_at),
         method: a.method ?? base?.method ?? c.s.methods[0] ?? null,
-        grinder: a.grinder ?? base?.grinder ?? c.s.grinders[0] ?? null,
-        // A grind setting from another bag is a guess at best; only carry it within a bag.
-        grind: a.grind ?? (sameBag ? base?.grind : null) ?? null,
+        grinder,
+        grind,
+        grind_text,
         dose_g: dose,
         water_ml: water,
         water_temp_c: temp(c, a.water_temp) ?? base?.water_temp_c ?? null,
@@ -823,14 +860,14 @@ function buildServer(call: Call) {
         bean: z.string().optional(),
         method: z.string().nullable().optional(),
         grinder: z.string().nullable().optional(),
-        grind: z.number().nullable().optional(),
+        grind: z.union([z.number(), z.string()]).nullable().optional(),
         dose_g: z.number().positive().nullable().optional(),
         water_ml: z.number().positive().nullable().optional(),
         water_temp: z.number().nullable().optional(),
         recipe_notes: z.string().nullable().optional(),
         rating: z.number().min(0).max(10).nullable().optional(),
         extraction: z.enum(EXTRACTION_KEYS).nullable().optional(),
-        strength: z.enum(STRENGTH_KEYS).nullable().optional(),
+        strength: z.preprocess(normalizeStrength, z.enum(STRENGTH_KEYS).nullable().optional()),
         tasting_notes: z.string().nullable().optional(),
         next_time: z.string().nullable().optional(),
         brewed_at: z.string().optional(),
@@ -843,6 +880,13 @@ function buildServer(call: Call) {
         Object.entries(rest).filter(([, v]) => v !== undefined),
       );
       if (bean !== undefined) patch.bean_id = findBean(c, bean).id;
+      // A grind lands on the grinder's dial; a new grinder without a grind clears the old one.
+      const grinderChanged = rest.grinder !== undefined && rest.grinder !== b.grinder;
+      if (rest.grind !== undefined || grinderChanged)
+        Object.assign(
+          patch,
+          grindFor(rest.grinder ?? b.grinder, rest.grind ?? null, c.s.grind_scales),
+        );
       if (water_temp !== undefined) patch.water_temp_c = temp(c, water_temp);
       if (brewed_at !== undefined) patch.brewed_at = brewedAt(c, brewed_at);
       if (!Object.keys(patch).length) throw new ToolError('Nothing to change.');

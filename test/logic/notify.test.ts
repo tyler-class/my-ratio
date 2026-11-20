@@ -75,6 +75,7 @@ function brew(p: Partial<Brew>): Brew {
     method: 'V60',
     grinder: null,
     grind: null,
+    grind_text: null,
     dose_g: 20,
     water_ml: 320,
     water_temp_c: null,
@@ -100,6 +101,7 @@ const state = (beans: Bean[], brews: Brew[]): AppState => ({
     telemetry: true,
     updates_set_up: false,
     origin_emojis: {},
+    grind_scales: {},
   },
   roasters: [],
   beans,
@@ -346,7 +348,7 @@ describe('bag almost empty', () => {
     expect(bagDose(m, b)).toBe(20);
     expect(brewsLeft(m, b)).toBe(2.5);
     expect(emptyDay(m, b, TZ)).toBeNull(); // 2.5 is more than about 2
-    // A bag with no brews of its own falls back to the household's usual dose.
+    // A bag with no brews of its own falls back to the usual dose across bags.
     const fresh = buildModel(state([done, bean({ id: 'n', bag_g: 30 })], daily.slice(0, 5)), NOW);
     expect(bagDose(fresh, fresh.beanMap.get('n')!)).toBe(fresh.avgDose);
   });

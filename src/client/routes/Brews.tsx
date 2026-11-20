@@ -4,6 +4,8 @@ import type { BrewView } from '@shared/logic/model';
 import { useModel } from '../lib/queries';
 import { useView } from '../lib/view';
 import { BrewRow } from '../components/BrewRow';
+import { Icon } from '../components/Icon';
+import { useSheets } from '../sheets/context';
 import {
   Empty,
   FilterButton,
@@ -25,6 +27,7 @@ const VIEW = { q: '', rated: 'all', method: '' };
 
 export function Brews() {
   const data = useModel();
+  const sheets = useSheets();
   const [vw, setView] = useView('journal', VIEW); // (stored under its old name, so remembered filters carry over)
   const [limit, setLimit] = useState(40);
   const [filters, setFilters] = useState(false);
@@ -58,7 +61,15 @@ export function Brews() {
   }
   return (
     <div>
-      <PageHeader title="Brews" icon="book" />
+      <PageHeader
+        title="Brews"
+        icon="book"
+        action={
+          <button type="button" className="btn primary sm" onClick={() => sheets.log()}>
+            <Icon name="plus" size={16} /> Log a brew
+          </button>
+        }
+      />
       <div className="searchrow">
         <input
           className="in search"

@@ -4,12 +4,12 @@ import { GlassTabBar, type GlassTab } from '../components/GlassTabBar';
 import { Icon } from '../components/Icon';
 import { useSheets } from '../sheets/context';
 import { useTabSwipe } from '../lib/tabSwipe';
-import { onPushOpen } from '../kit/push';
+import { onPushOpen, syncBadge } from '../kit/push';
 
 const TABS: GlassTab[] = [
   ['/', 'Home', 'home'],
-  ['/brews', 'Brews', 'book'],
   ['/beans', 'Beans', 'bean'],
+  ['/brews', 'Brews', 'book'],
   ['/insights', 'Insights', 'chart'],
   ['/settings', 'Settings', 'settings'],
 ];
@@ -37,8 +37,7 @@ export function Brand() {
 }
 
 /**
- * Phones (and the installed app): tabs in a floating glass capsule along the bottom, a floating
- * Log button, and a solid band under the status bar. 768px and up: a sidebar with the same tabs.
+ * Phones (and the installed app): tabs in a floating glass capsule along the bottom, and a solid band under the status bar. 768px and up: a sidebar with the same tabs.
  */
 export function Layout() {
   const { pathname } = useLocation();
@@ -53,6 +52,9 @@ export function Layout() {
   const nav = useNavigate();
   // A tapped notification while Ratio is open: go to its screen in-app. (No app-icon badge.)
   useEffect(() => onPushOpen((url) => nav(url)), [nav]);
+  // On open: a notification subscription the push service stopped accepting is replaced
+  // quietly (Ratio has no app-icon count; this only does the repair).
+  useEffect(() => void syncBadge(), []);
   // ?bean=<id> (a notification about a bag): open its sheet, then drop it from the address.
   const [params, setParams] = useSearchParams();
   const beanParam = params.get('bean');
@@ -95,9 +97,6 @@ export function Layout() {
       <main className="main">
         <Outlet />
       </main>
-      <button type="button" className="fab" aria-label="Log a brew" onClick={() => sheets.log()}>
-        <Icon name="plus" size={28} strokeWidth={2} />
-      </button>
       <GlassTabBar tabs={TABS} active={active} />
     </div>
   );

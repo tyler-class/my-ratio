@@ -24,6 +24,12 @@
   --warn-ink: #82540c;
   --bad-ink: #9e3a30;
   --blue-ink: #405f75;
+  --gray: #8b8178;
+  --gray-soft: #dcd5cc;
+  --gray-ink: #615850;
+  --orange: #d0702a;
+  --orange-soft: #f9dcc4;
+  --orange-ink: #9c4a12;
   --scrim: rgb(20 10 4 / 0.5);
   --sh: 0 1px 2px rgba(60, 32, 12, 0.05), 0 10px 28px rgba(60, 32, 12, 0.07);
   --serif: 'IBM Plex Serif', 'Iowan Old Style', Georgia, serif;
@@ -77,6 +83,12 @@
     --warn-ink: var(--warn);
     --bad-ink: var(--bad);
     --blue-ink: var(--blue);
+    --gray: #a79d93;
+    --gray-soft: #34302c;
+    --gray-ink: var(--gray);
+    --orange: #e79a5c;
+    --orange-soft: #42291a;
+    --orange-ink: var(--orange);
     --scrim: rgb(0 0 0 / 0.6);
     --sh: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.35);
     --glass-fill: rgb(36 26 19 / 0.64);
@@ -113,6 +125,12 @@
   --warn-ink: var(--warn);
   --bad-ink: var(--bad);
   --blue-ink: var(--blue);
+  --gray: #a79d93;
+  --gray-soft: #34302c;
+  --gray-ink: var(--gray);
+  --orange: #e79a5c;
+  --orange-soft: #42291a;
+  --orange-ink: var(--orange);
   --scrim: rgb(0 0 0 / 0.6);
   --sh: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.35);
   --glass-fill: rgb(36 26 19 / 0.64);
@@ -233,7 +251,7 @@ h3,
 .main {
   max-width: 1040px;
   margin: 0 auto;
-  padding: 8px 16px calc(var(--tabbar-clear) + 88px);
+  padding: 8px 16px calc(var(--tabbar-clear) + 24px);
 }
 .side {
   display: none;
@@ -355,31 +373,13 @@ h3,
     backdrop-filter: none;
   }
 }
-.fab {
-  position: fixed;
-  right: 18px;
-  bottom: calc(var(--tabbar-clear) + 14px);
-  z-index: 30;
-  width: 58px;
-  height: 58px;
-  border-radius: 50%;
-  border: 0;
-  background: var(--accent);
-  color: var(--accent-ink);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.3);
-}
-
 @media (min-width: 768px) {
   .shell {
     padding-top: var(--safe-top);
     padding-left: 240px;
   }
   .appbar,
-  .glass-bar,
-  .fab {
+  .glass-bar {
     display: none;
   }
   .main {
@@ -779,6 +779,8 @@ textarea.in {
   white-space: nowrap;
 }
 .sel-list {
+  /* Opening scrolls it into view clear of the phone's tab bar (useRevealList). */
+  scroll-margin: 12px 0 calc(var(--tabbar-clear) + 12px);
   position: absolute;
   z-index: 20;
   top: calc(100% + 6px);
@@ -1231,6 +1233,9 @@ textarea.in {
 .bar-blue {
   fill: var(--blue);
 }
+.bar-gray {
+  fill: var(--gray);
+}
 .dot-a {
   fill: var(--accent);
   opacity: 0.7;
@@ -1249,6 +1254,14 @@ textarea.in {
 }
 .dot-blue {
   fill: var(--blue);
+  opacity: 0.8;
+}
+.dot-gray {
+  fill: var(--gray);
+  opacity: 0.8;
+}
+.dot-orange {
+  fill: var(--orange);
   opacity: 0.8;
 }
 .h0 {
@@ -1296,6 +1309,9 @@ textarea.in {
 }
 .lg-blue {
   background: var(--blue);
+}
+.lg-gray {
+  background: var(--gray);
 }
 .lg-a {
   background: var(--accent);
@@ -1419,7 +1435,7 @@ textarea.in {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(var(--tabbar-clear) + 88px);
+  bottom: calc(var(--tabbar-clear) + 14px);
   z-index: 80;
   display: flex;
   justify-content: center;
@@ -1955,6 +1971,12 @@ textarea.in {
 .slide button.t-blue[aria-selected='true'] {
   color: var(--blue-ink);
 }
+.slide button.t-gray[aria-selected='true'] {
+  color: var(--gray-ink);
+}
+.slide button.t-orange[aria-selected='true'] {
+  color: var(--orange-ink);
+}
 .slide .n {
   font-weight: 500;
   opacity: 0.75;
@@ -2048,6 +2070,12 @@ textarea.in {
 }
 .slide > .slide-thumb.t-blue {
   background: var(--blue-soft);
+}
+.slide > .slide-thumb.t-gray {
+  background: var(--gray-soft);
+}
+.slide > .slide-thumb.t-orange {
+  background: var(--orange-soft);
 }
 /* A chart drawn at its real width (charts.tsx measures it). */
 .chart-box {
@@ -2216,6 +2244,10 @@ textarea.in {
   fill: color-mix(in srgb, var(--blue) 24%, var(--surface));
   stroke: var(--blue);
 }
+.pn-wrap .chart .bar-gray {
+  fill: color-mix(in srgb, var(--gray) 24%, var(--surface));
+  stroke: var(--gray);
+}
 /* "Brews per week": past weeks are .bar-s, this week .bar-a (unfinished): dashed. */
 .pn-wrap .chart .bar-a {
   stroke-dasharray: 3 2.5;
@@ -2245,6 +2277,9 @@ textarea.in {
 }
 .pn-wrap [data-panel='dialin'] .chart .bar-blue {
   fill: var(--blue);
+}
+.pn-wrap [data-panel='dialin'] .chart .bar-gray {
+  fill: var(--gray);
 }
 
 /* ---- scatter: ringed dots so overlaps separate ---- */
@@ -3296,7 +3331,8 @@ img.ceramic {
   border-radius: 2px;
   background: var(--line);
 }
-.tl-dot {
+.tl-dot,
+.st-dot {
   flex: none;
   display: grid;
   place-items: center;
@@ -3306,23 +3342,28 @@ img.ceramic {
   background: var(--accent-soft);
   color: var(--accent);
 }
-.tl-ev.s-ordered .tl-dot {
+.tl-ev.s-ordered .tl-dot,
+.st-dot.s-ordered {
   background: #8b8178;
   color: #fff;
 }
-.tl-ev.s-freezing .tl-dot {
+.tl-ev.s-freezing .tl-dot,
+.st-dot.s-freezing {
   background: #3f82c4;
   color: #fff;
 }
-.tl-ev.s-resting .tl-dot {
+.tl-ev.s-resting .tl-dot,
+.st-dot.s-resting {
   background: #1f2c55;
   color: #fff;
 }
-.tl-ev.s-drinking .tl-dot {
+.tl-ev.s-drinking .tl-dot,
+.st-dot.s-drinking {
   background: var(--accent);
   color: #fff;
 }
-.tl-ev.s-finished .tl-dot {
+.tl-ev.s-finished .tl-dot,
+.st-dot.s-finished {
   background: #a8d5a0;
   color: #2d6a33;
 }
@@ -3670,17 +3711,24 @@ button.bv-v.unset {
   opacity: 0.7;
 }
 .msel-list {
-  max-height: 320px;
-  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 340px;
+  padding: 0;
+  overflow: hidden;
 }
 .msel-q {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  margin: 0 -6px 4px;
-  width: calc(100% + 12px);
+  flex: none;
+  width: 100%;
   border-width: 0 0 1px;
   border-radius: 12px 12px 0 0;
+}
+.msel-opts {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 6px;
 }
 .msel-list .sel-opt {
   width: 100%;
@@ -3695,8 +3743,18 @@ button.bv-v.unset {
   font-weight: 600;
   color: var(--accent);
 }
-.msel-add {
-  color: var(--accent) !important;
+.msel-list .msel-add {
+  flex: none;
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 12px 12px;
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 600;
 }
 /* The roast day on the timeline: a warm ember. */
 .tl-ev.roast .tl-dot {
@@ -3799,4 +3857,188 @@ button.bv-v.unset {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Grind setting: off until a grinder is chosen; the grinder's scale under it. */
+.step button:disabled,
+.step .in:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.grind-scale {
+  margin-top: 6px;
+  font-size: 12.5px;
+}
+
+/* Settings → Equipment: each grinder is a card; its scale editor opens inside it, under a
+   divider, on a tinted panel, so it reads as that grinder's own settings. */
+.gs-add {
+  margin-top: 8px;
+}
+.gs-add .msel-ph {
+  color: var(--accent);
+  font-weight: 600;
+}
+.btn.gs-rm {
+  display: flex;
+  margin: 16px 0 0 auto;
+  gap: 5px;
+  min-height: 30px;
+  padding: 4px 12px;
+  font-size: 12.5px;
+  border-radius: 99px;
+  border-color: transparent;
+  background: var(--bad-soft);
+  color: var(--bad-ink);
+}
+.gs-row {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+.gs-row + .gs-row {
+  margin-top: 8px;
+}
+.gs-row.open {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+.gs-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 14px;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+}
+.gs-t {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.gs-n {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+}
+/* A known grinder: on its maker's default scale, or the owner's custom one. */
+.gs-tag {
+  padding: 1px 8px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  font-weight: 650;
+  background: var(--surface2);
+  color: var(--ink2);
+}
+.gs-tag.custom {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.gs-def {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+}
+.gs-def span {
+  color: var(--ink2);
+  font-size: 13px;
+}
+.gs-d {
+  color: var(--ink2);
+  font-size: 13px;
+}
+.gs-chev {
+  flex: none;
+  color: var(--ink2);
+  transition: transform 0.22s ease;
+}
+.gs-row.open .gs-chev {
+  transform: rotate(180deg);
+}
+.gs-b {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.22s ease;
+}
+.gs-b > div {
+  min-height: 0;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface2) 45%, var(--surface));
+}
+.gs-row.open .gs-b {
+  grid-template-rows: 1fr;
+}
+.gs-rule {
+  height: 1px;
+  background: var(--line);
+}
+.gs-ed {
+  padding: 14px 14px 16px;
+}
+.gs-ed .fg:last-of-type {
+  margin-bottom: 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gs-b,
+  .gs-chev {
+    transition: none;
+  }
+}
+.gs-between {
+  width: 90px;
+  text-align: center;
+}
+.gs-ex {
+  margin: -4px 0 10px;
+}
+.grind-text {
+  max-width: 220px;
+}
+/* The dropdown's search box: one hairline under it, no focus ring doubling it up. */
+.msel-q:focus,
+.msel-q:focus-visible {
+  outline: none;
+  box-shadow: none;
+  border-color: var(--line);
+}
+.msel-opts:empty {
+  display: none;
+}
+.msel-q + .msel-opts:empty + .msel-add {
+  border-top: 0;
+}
+@media (min-width: 768px) {
+  .sel-list {
+    scroll-margin-bottom: 16px;
+  }
+}
+
+/* A bag's detail with a second fact: the value, and a quieter line under it. */
+.bv-v:has(.bv-sub) {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+.bv-sub {
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--ink2);
+}
+.bv-vw:has(.bv-sub) {
+  align-items: center;
+}
+/* Nothing set: a faint em dash. */
+.bv-v.unset,
+button.bv-v.unset {
+  opacity: 0.45;
 }

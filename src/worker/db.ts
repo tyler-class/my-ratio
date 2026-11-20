@@ -1,5 +1,12 @@
+import { isScale } from '@shared/grind';
 import type { BeanEvent } from '@shared/logic/timeline';
-import { DEFAULT_METHODS, normalizeStatus, type BeanStatus, type BuyAgain } from '@shared/lookups';
+import {
+  DEFAULT_METHODS,
+  normalizeStatus,
+  normalizeStrength,
+  type BeanStatus,
+  type BuyAgain,
+} from '@shared/lookups';
 import { normalizeCurrency } from '@shared/currency';
 import type { AppState, Bean, Brew, ImageRef, Roaster, Settings, TempUnit } from '@shared/types';
 import { kitState } from './kit/telemetry';
@@ -130,13 +137,14 @@ export function toBrew(r: Row): Brew {
     method: s(r.method),
     grinder: s(r.grinder),
     grind: n(r.grind),
+    grind_text: s(r.grind_text),
     dose_g: n(r.dose_g),
     water_ml: n(r.water_ml),
     water_temp_c: n(r.water_temp_c),
     recipe_notes: s(r.recipe_notes),
     rating: n(r.rating),
     extraction: (s(r.extraction) as Brew['extraction']) ?? null,
-    strength: (s(r.strength) as Brew['strength']) ?? null,
+    strength: (normalizeStrength(s(r.strength)) as Brew['strength']) ?? null,
     tasting_notes: s(r.tasting_notes),
     next_time: s(r.next_time),
     rating_skipped: !!r.rating_skipped,
@@ -235,6 +243,16 @@ function emojiMap(v: string | undefined): Record<string, string> {
   }
 }
 
+function scaleMap(v: string | undefined): Settings['grind_scales'] {
+  try {
+    const o: unknown = JSON.parse(v ?? '{}');
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return {};
+    return Object.fromEntries(Object.entries(o).filter(([, x]) => isScale(x)));
+  } catch {
+    return {};
+  }
+}
+
 /** Saved Insights layout; anything malformed is dropped so the client falls back to defaults. */
 function panels(v: string | undefined): Settings['insights_layout'] {
   try {
@@ -261,6 +279,7 @@ export const DEFAULT_SETTINGS: Settings = {
   telemetry: true,
   updates_set_up: false,
   origin_emojis: {},
+  grind_scales: {},
 };
 
 export async function loadSettings(db: D1Database): Promise<Settings> {
@@ -280,6 +299,7 @@ export async function loadSettings(db: D1Database): Promise<Settings> {
     time_zone: m.get('time_zone') ?? DEFAULT_SETTINGS.time_zone,
     insights_layout: panels(m.get('insights_layout')),
     origin_emojis: emojiMap(m.get('origin_emojis')),
+    grind_scales: scaleMap(m.get('grind_scales')),
     telemetry: kit.telemetry,
     updates_set_up: kit.updates_set_up,
   };

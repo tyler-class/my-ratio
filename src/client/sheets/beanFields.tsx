@@ -157,7 +157,7 @@ export function CoffeeFields({ d, set, o }: FieldProps & { o: Options }) {
           />
         )}
       </Field>
-      <Field label="Roaster’s tasting notes">
+      <Field label="Tasting notes">
         <input
           className="in"
           value={d.tasting}
@@ -165,7 +165,7 @@ export function CoffeeFields({ d, set, o }: FieldProps & { o: Options }) {
           onChange={(e) => set({ tasting: e.target.value })}
         />
       </Field>
-      <Field label="Roaster’s description">
+      <Field label="Description">
         <NotesField
           value={d.roaster_notes}
           onChange={(e) => set({ roaster_notes: e.target.value })}

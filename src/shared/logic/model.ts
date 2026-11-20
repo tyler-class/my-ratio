@@ -1,5 +1,6 @@
 // Joins the raw rows into the view model the app renders: per-bag usage, ratings and
-// stock, plus household-wide burn rate and runway. Pure, so it's unit-tested.
+// stock, plus overall burn rate and runway. Pure, so it's unit-tested.
+import { grindLabel, type GrindScale } from '../grind';
 import { LIVE_STATUSES, flagFor } from '../lookups';
 import type { AppState, Bean, Brew, Roaster } from '../types';
 import { dayKey, daysBetween } from './dates';
@@ -159,12 +160,16 @@ export function recentGrinds(bean: BeanView | null, limit = 5): number[] {
   return out.slice(0, limit);
 }
 
-/** Average rating per grind setting, best first. */
-export function grindTable(bean: BeanView): { grind: number; n: number; avg: number }[] {
-  const by = new Map<number, number[]>();
+/** Average rating per grind setting (as written on its grinder), best first. */
+export function grindTable(
+  bean: BeanView,
+  scales: Record<string, GrindScale> = {},
+): { grind: string; n: number; avg: number }[] {
+  const by = new Map<string, number[]>();
   for (const x of bean.rated) {
-    if (x.grind == null) continue;
-    by.set(x.grind, [...(by.get(x.grind) ?? []), x.rating!]);
+    const g = grindLabel(x, scales);
+    if (g == null) continue;
+    by.set(g, [...(by.get(g) ?? []), x.rating!]);
   }
   return [...by]
     .map(([grind, r]) => ({ grind, n: r.length, avg: mean(r)! }))

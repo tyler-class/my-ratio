@@ -50,6 +50,7 @@ function brew(p: Partial<Brew>): Brew {
     method: 'V60',
     grinder: 'Ode',
     grind: 6,
+    grind_text: null,
     dose_g: 20,
     water_ml: 320,
     water_temp_c: 94,
@@ -75,6 +76,7 @@ const state = (beans: Bean[], brews: Brew[]): AppState => ({
     telemetry: true,
     updates_set_up: false,
     origin_emojis: {},
+    grind_scales: {},
   },
   roasters: [
     {
@@ -147,7 +149,7 @@ describe('buildModel', () => {
   });
 
   it('ranks grind settings and lists recent ones', () => {
-    expect(grindTable(k)[0]).toMatchObject({ grind: 6, n: 2, avg: 8.5 });
+    expect(grindTable(k)[0]).toMatchObject({ grind: '6', n: 2, avg: 8.5 });
     expect(recentGrinds(k)).toEqual([6, 6.4]);
   });
 

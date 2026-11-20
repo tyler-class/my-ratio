@@ -43,6 +43,7 @@ export const TABLE_COLUMNS = {
     'method',
     'grinder',
     'grind',
+    'grind_text',
     'dose_g',
     'water_ml',
     'water_temp_c',

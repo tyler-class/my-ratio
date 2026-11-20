@@ -1,3 +1,4 @@
+import { isScale, MAX_BETWEEN } from './grind';
 import { isCurrency } from './currency';
 // Request bodies. Shared so the client and Worker agree on shapes.
 import { z } from 'zod';
@@ -7,6 +8,7 @@ import {
   STATUS_KEYS,
   STRENGTH_KEYS,
   normalizeStatus,
+  normalizeStrength,
 } from './lookups';
 
 /** Optional text: blank becomes null, so clearing a field in a form clears it in the database. */
@@ -43,6 +45,22 @@ export const settingsPatch = z
     grinders: z.array(name(60)).max(30),
     temp_unit: z.enum(['F', 'C']),
     origin_emojis: z.record(z.string().min(1).max(80), z.string().min(1).max(16)),
+    grind_scales: z
+      .record(
+        z.string().min(1).max(60),
+        z
+          .union([
+            z.object({
+              kind: z.literal('steps'),
+              min: z.number().int().min(-100).max(1000),
+              max: z.number().int().min(-100).max(1000),
+              between: z.number().int().min(0).max(MAX_BETWEEN),
+            }),
+            z.object({ kind: z.literal('text') }),
+          ])
+          .refine(isScale, 'The top of the range must be above the bottom'),
+      )
+      .refine((r) => Object.keys(r).length <= 30),
     currency: z
       .string()
       .transform((v) => v.trim().toUpperCase())
@@ -115,13 +133,15 @@ export const brewInput = z.object({
   method: text(60),
   grinder: text(60),
   grind: num(-1000, 10_000),
+  /** A write-in grinder's setting, as written ("1.3.2"). */
+  grind_text: text(40),
   dose_g: num(0, 10_000),
   water_ml: num(0, 100_000),
   water_temp_c: num(-50, 150),
   recipe_notes: text(),
   rating: num(0, 10),
   extraction: z.enum(EXTRACTION_KEYS).nullish(),
-  strength: z.enum(STRENGTH_KEYS).nullish(),
+  strength: z.preprocess(normalizeStrength, z.enum(STRENGTH_KEYS).nullish()),
   tasting_notes: text(),
   next_time: text(500),
   rating_skipped: z.boolean().optional(),

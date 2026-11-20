@@ -184,7 +184,7 @@ export function rateNotice(
 
 // Bag almost empty ------------------------------------------------------------------------------
 
-/** A bag's usual dose: its last 5 brews with a dose, else the household's recent average. */
+/** A bag's usual dose: its last 5 brews with a dose, else the recent average across bags. */
 export function bagDose(m: Pick<Model, 'avgDose'>, b: BeanView): number {
   const doses = b.brews
     .filter((x) => x.dose_g)

@@ -348,7 +348,7 @@ export const Legend = () => (
       Over
     </span>
     <span>
-      <i className="lg-blue" />
+      <i className="lg-gray" />
       Uneven
     </span>
   </div>

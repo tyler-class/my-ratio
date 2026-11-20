@@ -1,5 +1,15 @@
 import { useState } from 'react';
 import { EXTRACTION, STATUSES, STRENGTH } from '@shared/lookups';
+import {
+  describeScale,
+  byName,
+  formatGrind,
+  grindLabel,
+  middleOf,
+  scaleFor,
+  snapGrind,
+  stepGrind,
+} from '@shared/grind';
 import { brewedAt, dayLabel, sinceLabel, toLocalInput } from '@shared/logic/dates';
 import type { BrewView, Model } from '@shared/logic/model';
 import { fmtN, r1, tempIn, tempOut } from '@shared/logic/units';
@@ -46,7 +56,6 @@ export const rateFrom = (b?: BrewView | null): RateValues => ({
 export function RateFields({ v, set }: { v: RateValues; set: (p: Partial<RateValues>) => void }) {
   const nudge = (d: number) =>
     set({ rating: Math.max(0, Math.min(10, Math.round(((v.rating ?? 7) + d) * 2) / 2)) });
-  const tip = EXTRACTION.find((e) => e.key === v.extraction)?.tip;
   return (
     <div>
       <Field label="Rating">
@@ -89,14 +98,13 @@ export function RateFields({ v, set }: { v: RateValues; set: (p: Partial<RateVal
           label="Strength"
           value={v.strength}
           allowClear
-          options={STRENGTH.map((e) => [e.key, e.label] as const)}
+          options={STRENGTH.map((e) => [e.key, e.label, e.tone] as const)}
           onChange={(strength) => set({ strength })}
         />
       </Field>
       <Field label="Tasting notes">
         <NotesField
           value={v.tasting_notes}
-          placeholder="Round, plummy, a little sharp at the end"
           onChange={(e) => set({ tasting_notes: e.target.value })}
         />
       </Field>
@@ -104,20 +112,8 @@ export function RateFields({ v, set }: { v: RateValues; set: (p: Partial<RateVal
         <input
           className="in"
           value={v.next_time}
-          placeholder="One tick finer, slower pour"
           onChange={(e) => set({ next_time: e.target.value })}
         />
-        {tip && !v.next_time.includes(tip) && (
-          <div className="seg" style={{ marginTop: 8 }}>
-            <button
-              type="button"
-              className="chip sm"
-              onClick={() => set({ next_time: v.next_time ? `${v.next_time} ${tip}` : tip })}
-            >
-              + {tip}
-            </button>
-          </div>
-        )}
       </Field>
     </div>
   );
@@ -187,7 +183,8 @@ export function RateSheet({ m, s, brewId }: { m: Model; s: Settings; brewId: str
       <div className="callout" style={{ marginBottom: 18 }}>
         <b>Recipe</b>
         {fmtN(b.dose_g)} g → {b.water_ml != null ? Math.round(b.water_ml) : '–'} mL ·{' '}
-        {b.grinder ?? ''} {fmtN(b.grind)} · {fmtN(tempOut(b.water_temp_c, s.temp_unit))}°
+        {b.grinder ?? ''} {grindLabel(b, s.grind_scales) ?? '–'} ·{' '}
+        {fmtN(tempOut(b.water_temp_c, s.temp_unit))}°
         {b.recipe_notes && <div className="sub">{b.recipe_notes}</div>}
       </div>
       <RateFields v={v} set={(p) => setV((x) => ({ ...x, ...p }))} />
@@ -217,7 +214,7 @@ function recipeFrom(br: BrewView | null, s: Settings): Recipe {
   return {
     method: br?.method ?? s.methods[0] ?? '',
     grinder: br?.grinder ?? s.grinders[0] ?? '',
-    grind: numStr(br?.grind),
+    grind: br ? (grindLabel(br, s.grind_scales) ?? '') : '',
     dose: br?.dose_g != null ? String(br.dose_g) : '20',
     water: br?.water_ml != null ? String(r1(br.water_ml)) : '',
     temp: numStr(tempOut(br?.water_temp_c ?? null, s.temp_unit)) || defaultTemp(s),
@@ -315,14 +312,21 @@ export function BrewSheet({
     const r = parseNum(val);
     set({ ratio: val, ...(r && doseN && doseN > 0 ? { water: String(r1(doseN * r)) } : {}) });
   };
-  const nudgeGrind = (d: number) => {
-    const g = parseNum(f.grind);
-    set({ grind: String(Math.round(((g ?? 6) + d) * 10) / 10) });
-  };
+  // The grind follows the chosen grinder's own scale (Settings → Equipment, or its preset).
+  const scale = scaleFor(f.grinder, s.grind_scales);
+  const grindN = parseNum(f.grind);
+  const steps = scale.kind === 'steps' ? scale : null;
+  const nudgeGrind = (dir: 1 | -1) =>
+    steps &&
+    set({
+      grind: formatGrind(grindN == null ? middleOf(steps) : stepGrind(grindN, dir, steps), steps),
+    });
+  // A different grinder reads a different dial: its old setting means nothing there.
+  const pickGrinder = (v: string) => set({ grinder: v, ...(v !== f.grinder ? { grind: '' } : {}) });
   // Choices from Settings, plus this brew's own if it isn't one of them any more.
   const withCurrent = (list: string[], v: string) => (v && !list.includes(v) ? [...list, v] : list);
-  const methods = withCurrent(s.methods, f.method);
-  const grinders = withCurrent(s.grinders, f.grinder);
+  const methods = byName(withCurrent(s.methods, f.method));
+  const grinders = byName(withCurrent(s.grinders, f.grinder));
   const [whenDay, whenTime] = f.when.split('T') as [string, string];
   const rated =
     rv.rating != null || !!rv.extraction || !!rv.strength || !!rv.tasting_notes || !!rv.next_time;
@@ -338,7 +342,9 @@ export function BrewSheet({
       bean_id: f.beanId,
       method: f.method,
       grinder: f.grinder,
-      grind: parseNum(f.grind),
+      // A write-in grinder keeps the setting as written; any other, as a number on its dial.
+      grind: steps ? parseNum(f.grind) : null,
+      grind_text: steps ? null : f.grind.trim() || null,
       dose_g: doseN,
       water_ml: waterN,
       water_temp_c: tempIn(parseNum(f.temp), s.temp_unit),
@@ -447,7 +453,7 @@ export function BrewSheet({
           <div className="callout" style={{ marginBottom: 18 }}>
             <b>Last time · {sinceLabel(last.date, now)}</b>
             {fmtN(last.dose_g)} g → {last.water_ml != null ? Math.round(last.water_ml) : '–'} mL ·
-            grind {fmtN(last.grind)}
+            grind {grindLabel(last, s.grind_scales) ?? '–'}
             {last.rating != null ? ` · rated ${fmtN(last.rating)}` : ''}
             {last.extraction
               ? ` · ${EXTRACTION.find((e) => e.key === last.extraction)?.label}`
@@ -462,7 +468,8 @@ export function BrewSheet({
                   className="btn sm"
                   onClick={() => setF((x) => ({ ...x, ...recipeFrom(best, s) }))}
                 >
-                  Use best recipe ({fmtN(best.rating)}): grind {fmtN(best.grind)}, 1:
+                  Use best recipe ({fmtN(best.rating)}): grind{' '}
+                  {grindLabel(best, s.grind_scales) ?? '–'}, 1:
                   {best.ratio ? best.ratio.toFixed(1) : '?'}
                 </button>
               </div>
@@ -488,33 +495,61 @@ export function BrewSheet({
               label="Grinder"
               value={f.grinder}
               options={grinders.map((v) => [v, v] as const)}
-              onChange={(v) => set({ grinder: v })}
+              onChange={pickGrinder}
             />
           ) : (
             <ChoiceInput
               options={[]}
               value={f.grinder}
               placeholder="Grinder name"
-              onChange={(v) => set({ grinder: v })}
+              onChange={pickGrinder}
             />
           )}
         </Field>
         <Field label="Grind setting">
-          <div className="step compact">
-            <button type="button" aria-label="Finer" onClick={() => nudgeGrind(-0.1)}>
-              −
-            </button>
+          {f.grinder && !steps ? (
             <input
-              className="in"
-              inputMode="decimal"
+              className="in grind-text"
               value={f.grind}
-              placeholder="6.2"
+              maxLength={40}
+              placeholder="As you write it, like 1.3.2"
               onChange={(e) => set({ grind: e.target.value })}
             />
-            <button type="button" aria-label="Coarser" onClick={() => nudgeGrind(0.1)}>
-              +
-            </button>
-          </div>
+          ) : (
+            <div className="step compact">
+              <button
+                type="button"
+                aria-label="Finer"
+                disabled={!steps || !f.grinder || (grindN != null && grindN <= steps.min)}
+                onClick={() => nudgeGrind(-1)}
+              >
+                −
+              </button>
+              <input
+                className="in"
+                inputMode={steps?.between ? 'decimal' : 'numeric'}
+                value={f.grind}
+                disabled={!f.grinder}
+                placeholder={f.grinder && steps ? String(middleOf(steps)) : 'Pick a grinder'}
+                onChange={(e) => set({ grind: e.target.value })}
+                // Typed settings land on the nearest one the dial has.
+                onBlur={() =>
+                  steps &&
+                  grindN != null &&
+                  set({ grind: formatGrind(snapGrind(grindN, steps), steps) })
+                }
+              />
+              <button
+                type="button"
+                aria-label="Coarser"
+                disabled={!steps || !f.grinder || (grindN != null && grindN >= steps.max)}
+                onClick={() => nudgeGrind(1)}
+              >
+                +
+              </button>
+            </div>
+          )}
+          {f.grinder && steps && <div className="sub grind-scale">{describeScale(scale)}</div>}
         </Field>
         <div className="fg dose-water">
           <div>
