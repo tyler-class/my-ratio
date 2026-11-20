@@ -1,7 +1,7 @@
 // Small hand-drawn SVG charts, styled by CSS classes so they follow the theme.
 import { dayKey, MO, startOfDay, WD } from '@shared/logic/dates';
 import { fmtN } from '@shared/logic/units';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 /**
  * The width a chart actually has, so it draws at true size: text and dots stay the same size
@@ -149,16 +149,32 @@ export function Scatter({
   );
 }
 
-/** Brews per day for the last 26 weeks, GitHub-style. */
+/**
+ * Brews per day, GitHub-style: as many recent weeks as fit the panel's width (13 to 53), so the
+ * squares stay a comfortable size and fill it, wide or narrow.
+ */
 export function Heatmap({ keys }: { keys: string[] }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const measure = () => setWidth(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const counts = new Map<string, number>();
   for (const k of keys) counts.set(k, (counts.get(k) ?? 0) + 1);
   const today = startOfDay(new Date());
-  const weeks = 26,
-    cell = 13,
+  const cell = 14,
     gap = 3,
     left = 24,
     top = 16;
+  const weeks = width
+    ? Math.max(13, Math.min(53, Math.floor((width - left - 18 + gap) / (cell + gap))))
+    : 26;
   const start = new Date(
     today.getFullYear(),
     today.getMonth(),
@@ -185,38 +201,41 @@ export function Heatmap({ keys }: { keys: string[] }) {
   const W = left + weeks * (cell + gap) + 18,
     H = top + 7 * (cell + gap);
   return (
-    <svg
-      className="chart"
-      viewBox={`0 0 ${W} ${H}`}
-      width={W}
-      height={H}
-      role="img"
-      style={{ maxWidth: '100%', height: 'auto', display: 'block' }}
-    >
-      {months.map((m, i) => (
-        <text key={i} x={m.x} y={10}>
-          {m.t}
-        </text>
-      ))}
-      {[1, 3, 5].map((d) => (
-        <text key={d} x={0} y={top + d * (cell + gap) + 10}>
-          {WD[d]!.charAt(0)}
-        </text>
-      ))}
-      {cells.map((c, i) => (
-        <rect
-          key={i}
-          className={'h' + Math.min(4, c.c)}
-          x={c.x}
-          y={c.y}
-          width={cell}
-          height={cell}
-          rx={3.5}
-        >
-          <title>{c.t}</title>
-        </rect>
-      ))}
-    </svg>
+    <div ref={box} className="heatmap">
+      <svg
+        className="chart"
+        viewBox={`0 0 ${W} ${H}`}
+        width={W}
+        height={H}
+        role="img"
+        aria-label={`Brews per day, last ${weeks} weeks`}
+        style={{ maxWidth: '100%', height: 'auto', display: 'block' }}
+      >
+        {months.map((m, i) => (
+          <text key={i} x={m.x} y={10}>
+            {m.t}
+          </text>
+        ))}
+        {[1, 3, 5].map((d) => (
+          <text key={d} x={0} y={top + d * (cell + gap) + 10}>
+            {WD[d]!.charAt(0)}
+          </text>
+        ))}
+        {cells.map((c, i) => (
+          <rect
+            key={i}
+            className={'h' + Math.min(4, c.c)}
+            x={c.x}
+            y={c.y}
+            width={cell}
+            height={cell}
+            rx={3.5}
+          >
+            <title>{c.t}</title>
+          </rect>
+        ))}
+      </svg>
+    </div>
   );
 }
 

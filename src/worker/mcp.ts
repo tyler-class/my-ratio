@@ -1,3 +1,4 @@
+import { restInfo } from '@shared/logic/timeline';
 // MCP server: lets any MCP-capable assistant read the coffee log and log, rate and edit
 // brews, bags and roasters in plain language. Tools call the same REST API the app uses
 // (validation lives there), marked internal because OAuthProvider already checked the token.
@@ -198,6 +199,22 @@ function beanOut(b: BeanView, c: Ctx) {
   };
 }
 
+/** While resting: how far along the rest clock it is. */
+function restOut(b: BeanView, c: Ctx) {
+  if (b.status !== 'resting') return null;
+  const first = b.brews.at(-1);
+  const r = restInfo(b, b.events, c.today, first ? dayIn(first.date, c.tz) : null);
+  if (!r) return null;
+  if (r.mode === 'count') return { resting_for_days: r.rested, since: r.restingSince };
+  return {
+    rested_days: r.rested,
+    of_days: r.restDays,
+    ready: r.ready,
+    ready_on: r.readyDay,
+    counted_from: r.from === 'roast' ? 'roast day, less freezer time' : 'start of resting',
+  };
+}
+
 function beanDetail(b: BeanView, c: Ctx, brewLimit: number) {
   const perCup = b.perG ? b.perG * c.m.avgDose : null;
   return {
@@ -208,8 +225,11 @@ function beanDetail(b: BeanView, c: Ctx, brewLimit: number) {
     altitude: b.altitude,
     received_on: b.received_on,
     rest_until: b.rest_until,
+    rest_days: b.rest_days,
+    rest: restOut(b, c),
     thawed_on: b.thawed_on,
     finished_on: b.finished_on,
+    timeline: b.events.map((e) => ({ status: e.status, on: e.on_day })),
     roaster_notes: b.roaster_notes,
     my_notes: b.notes,
     bag_g: b.bag_g,
@@ -856,7 +876,21 @@ function buildServer(call: Call) {
     status: z.preprocess(normalizeStatus, z.enum(STATUS_KEYS)).optional(),
     roasted_on: z.string().nullable().optional().describe('YYYY-MM-DD'),
     received_on: z.string().nullable().optional(),
-    rest_until: z.string().nullable().optional(),
+    rest_until: z
+      .string()
+      .nullable()
+      .optional()
+      .describe('YYYY-MM-DD it should be ready; prefer rest_days'),
+    rest_days: z
+      .number()
+      .int()
+      .min(0)
+      .max(365)
+      .nullable()
+      .optional()
+      .describe(
+        'Recommended rest in days (default 14), counted from the roast day less freezer time',
+      ),
     thawed_on: z.string().nullable().optional(),
     finished_on: z.string().nullable().optional(),
     bag_g: z.number().positive().nullable().optional(),
@@ -882,7 +916,7 @@ function buildServer(call: Call) {
     {
       title: 'Add a bag',
       description:
-        'Add a new bag of coffee. Status defaults to resting (arrived today, degassing; set rest_until). Use ordered for coffee on the way, freezing to bank it, drinking once open.',
+        'Add a new bag of coffee. Status defaults to resting (arrived today, degassing; set rest_days, the recommended rest). Use ordered for coffee on the way, freezing to bank it, drinking once open.',
       inputSchema: z.object({ name: z.string().min(1), ...beanFields }),
     },
     safe(async ({ roaster, ...a }) => {
@@ -900,7 +934,7 @@ function buildServer(call: Call) {
     {
       title: 'Update a bag',
       description:
-        'Change a bag: move it along (ordered → resting/freezing → drinking → finished; dates are stamped automatically), say whether you’d buy it again, or edit any detail. Pass null to clear a field.',
+        'Change a bag: move it along (ordered → freezing → resting → drinking → finished; freezing is optional; each move is added to the bag’s timeline, dated today), say whether you’d buy it again, or edit any detail. Pass null to clear a field.',
       inputSchema: z.object({
         bean: z.string(),
         name: z.string().min(1).optional(),

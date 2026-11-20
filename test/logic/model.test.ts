@@ -19,6 +19,8 @@ function bean(p: Partial<Bean>): Bean {
     rest_until: null,
     thawed_on: null,
     finished_on: null,
+    rest_days: null,
+    events: [],
     tasting_notes: 'Cassis, lime',
     roaster_notes: null,
     origins: ['Kenya'],
@@ -72,6 +74,7 @@ const state = (beans: Bean[], brews: Brew[]): AppState => ({
     insights_layout: [],
     telemetry: true,
     updates_set_up: false,
+    origin_emojis: {},
   },
   roasters: [
     {

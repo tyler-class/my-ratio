@@ -1,3 +1,4 @@
+import type { BeanEvent } from './logic/timeline';
 import type { BeanStatus, BuyAgain, Extraction, Strength } from './lookups';
 
 export interface ImageRef {
@@ -24,9 +25,14 @@ export interface Bean {
   status: BeanStatus;
   roasted_on: string | null;
   received_on: string | null;
+  /** The day it's ready to brew while resting: kept up to date from the rest clock. */
   rest_until: string | null;
   thawed_on: string | null;
   finished_on: string | null;
+  /** Recommended rest in days (null: the default, DEFAULT_REST_DAYS). */
+  rest_days: number | null;
+  /** Its status changes, oldest first. */
+  events: BeanEvent[];
   tasting_notes: string | null;
   roaster_notes: string | null;
   origins: string[];
@@ -82,6 +88,8 @@ export interface Settings {
   telemetry: boolean;
   /** Someone added the update workflow to this copy's GitHub repo, from Settings → Updates. */
   updates_set_up: boolean;
+  /** Emoji chosen for origins that aren't a known country (known ones show their flag). */
+  origin_emojis: Record<string, string>;
 }
 
 export interface InsightsPanel {

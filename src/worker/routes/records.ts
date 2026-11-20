@@ -1,6 +1,8 @@
 // Roasters, beans (bags) and brews.
 import { Hono } from 'hono';
 import {
+  beanEventInput,
+  beanEventPatch,
   beanInput,
   beanPatch,
   brewInput,
@@ -24,6 +26,8 @@ import {
   updateStmt,
 } from '../db';
 import { deleteOwnerImages } from './images';
+import { eventStmt, restDaysFrom, syncBean, today } from '../timeline';
+import { sortEvents } from '@shared/logic/timeline';
 import { ApiError, body, defined, notFound, type AppEnv } from './util';
 
 export const records = new Hono<AppEnv>();
@@ -74,17 +78,34 @@ records.delete('/roasters/:id', async (c) => {
 records.post('/beans', async (c) => {
   const input = await body(c, beanInput);
   await checkRoaster(c.env.DB, input.roaster_id);
-  if (input.status !== 'ordered' && !input.received_on) input.received_on = await today(c.env.DB);
+  const day = await today(c.env.DB);
+  if (input.status !== 'ordered' && !input.received_on) input.received_on = day;
+  if (input.rest_until && input.rest_days == null)
+    input.rest_days = restDaysFrom(
+      input.rest_until,
+      input.roasted_on ?? input.received_on ?? null,
+      day,
+    );
   const id = newId();
   const now = nowIso();
-  await insertStmt(c.env.DB, 'beans', {
-    id,
-    ...encode(input),
-    roaster_id: input.roaster_id ?? null,
-    buy_again: input.buy_again ?? null,
-    created_at: now,
-    updated_at: now,
-  }).run();
+  await c.env.DB.batch([
+    insertStmt(c.env.DB, 'beans', {
+      id,
+      ...encode(input),
+      roaster_id: input.roaster_id ?? null,
+      buy_again: input.buy_again ?? null,
+      created_at: now,
+      updated_at: now,
+    }),
+    // Its timeline starts with the status it arrives in.
+    eventStmt(
+      c.env.DB,
+      id,
+      input.status,
+      input.status === 'ordered' ? day : (input.received_on ?? day),
+    ),
+  ]);
+  await syncBean(c.env.DB, id, { day });
   return c.json((await loadBeans(c.env.DB, id))[0], 201);
 });
 
@@ -94,18 +115,108 @@ records.patch('/beans/:id', async (c) => {
   const prev = (await loadBeans(c.env.DB, id))[0];
   if (!prev) throw notFound('Bean');
   await checkRoaster(c.env.DB, input.roaster_id);
-  if (input.status && input.status !== prev.status) {
-    Object.assign(input, statusDates(prev, input, await today(c.env.DB)));
-  }
-  if (Object.keys(input).length) await updateStmt(c.env.DB, 'beans', id, encode(input)).run();
+  const day = await today(c.env.DB);
+  const moved = !!input.status && input.status !== prev.status;
+  if (moved) Object.assign(input, statusDates(prev, input, day));
+  if (input.rest_until && !('rest_days' in input))
+    input.rest_days = restDaysFrom(
+      input.rest_until,
+      input.roasted_on ?? prev.roasted_on ?? prev.received_on,
+      day,
+    );
+  const stmts: D1PreparedStatement[] = [];
+  if (Object.keys(input).length) stmts.push(updateStmt(c.env.DB, 'beans', id, encode(input)));
+  // A move along the path goes on its timeline, dated today.
+  if (moved) stmts.push(eventStmt(c.env.DB, id, input.status!, day));
+  if (stmts.length) await c.env.DB.batch(stmts);
+  await syncBean(c.env.DB, id, { day });
   return c.json((await loadBeans(c.env.DB, id))[0]);
 });
 
 type BeanFields = z.output<typeof beanPatch>;
 
-async function today(db: D1Database) {
-  return dayIn(new Date(), (await loadSettings(db)).time_zone);
+/**
+ * A brew of a bag that isn't open yet moves it to drinking, on the brew's day (never before its
+ * latest timeline entry), stamping dates as any move does.
+ */
+async function openOnBrew(db: D1Database, beanId: string | null | undefined, brewedAt: string) {
+  if (!beanId) return;
+  const bean = (await loadBeans(db, beanId))[0];
+  if (!bean || bean.status === 'drinking') return;
+  const settings = await loadSettings(db);
+  const latest = bean.events.at(-1)?.on_day;
+  let day = dayIn(new Date(brewedAt), settings.time_zone);
+  if (latest && day < latest) day = latest;
+  const input: Partial<BeanFields> = { status: 'drinking' };
+  Object.assign(input, statusDates(bean, input, day));
+  await db.batch([
+    updateStmt(db, 'beans', beanId, encode(input)),
+    eventStmt(db, beanId, 'drinking', day),
+  ]);
+  await syncBean(db, beanId, { day: await today(db) });
 }
+
+// A bag's timeline: add a change that happened before (with its day), correct one, or remove it.
+// The bag's status always follows its latest entry.
+records.post('/beans/:id/events', async (c) => {
+  const id = c.req.param('id');
+  const input = await body(c, beanEventInput);
+  if (!(await exists(c.env.DB, 'beans', id))) throw notFound('Bean');
+  await eventStmt(c.env.DB, id, input.status, input.on_day).run();
+  await syncBean(c.env.DB, id, { fromTimeline: true });
+  return c.json((await loadBeans(c.env.DB, id))[0], 201);
+});
+
+records.patch('/bean-events/:id', async (c) => {
+  const id = c.req.param('id');
+  const input = defined(await body(c, beanEventPatch));
+  const ev = await first(c.env.DB, 'SELECT bean_id FROM bean_events WHERE id = ?', id);
+  if (!ev) throw notFound('Timeline entry');
+  const beanId = String(ev.bean_id);
+  // Correcting a day keeps the order: it stays between the entries before and after it.
+  if (input.on_day) {
+    const evs = sortEvents((await loadBeans(c.env.DB, beanId))[0]?.events ?? []);
+    const i = evs.findIndex((e) => e.id === id);
+    const before = evs[i - 1]?.on_day;
+    const after = evs[i + 1]?.on_day;
+    if ((before && input.on_day < before) || (after && input.on_day > after))
+      throw new ApiError(
+        400,
+        'invalid',
+        before && after
+          ? `Pick a day from ${before} to ${after}, between the changes before and after it.`
+          : before
+            ? `Pick ${before} or later, after the change before it.`
+            : `Pick ${after} or earlier, before the change after it.`,
+      );
+  }
+  const cols = Object.keys(input) as (keyof typeof input)[];
+  if (cols.length)
+    await c.env.DB.prepare(
+      `UPDATE bean_events SET ${cols.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`,
+    )
+      .bind(...cols.map((k) => input[k]), id)
+      .run();
+  // A corrected day never moves the bag to another status (a changed status still does).
+  await syncBean(c.env.DB, beanId, { fromTimeline: !!input.status });
+  return c.json((await loadBeans(c.env.DB, beanId))[0]);
+});
+
+records.delete('/bean-events/:id', async (c) => {
+  const id = c.req.param('id');
+  const ev = await first(c.env.DB, 'SELECT bean_id FROM bean_events WHERE id = ?', id);
+  if (!ev) throw notFound('Timeline entry');
+  const left = await first(
+    c.env.DB,
+    'SELECT COUNT(*) AS n FROM bean_events WHERE bean_id = ?',
+    String(ev.bean_id),
+  );
+  if (Number(left?.n) <= 1)
+    throw new ApiError(400, 'invalid', 'A bag keeps at least one timeline entry.');
+  await c.env.DB.prepare('DELETE FROM bean_events WHERE id = ?').bind(id).run();
+  await syncBean(c.env.DB, String(ev.bean_id), { fromTimeline: true });
+  return c.json((await loadBeans(c.env.DB, String(ev.bean_id)))[0]);
+});
 
 /**
  * Moving a bag along stamps the date it happened, unless the request sets it itself:
@@ -161,6 +272,7 @@ records.post('/brews', async (c) => {
   )
     .bind(...cols.map((k) => fields[k]))
     .run();
+  await openOnBrew(c.env.DB, input.bean_id, String(fields.brewed_at));
   return c.json((await loadBrews(c.env.DB, id))[0], 201);
 });
 
@@ -172,7 +284,10 @@ records.patch('/brews/:id', async (c) => {
   const input: Record<string, unknown> = { ...rest };
   if (brewed_at) input.brewed_at = new Date(brewed_at).toISOString();
   if (Object.keys(input).length) await updateStmt(c.env.DB, 'brews', id, encode(input)).run();
-  return c.json((await loadBrews(c.env.DB, id))[0]);
+  const row = (await loadBrews(c.env.DB, id))[0]!;
+  // Moved to another bag: that bag is open now too.
+  if (rest.bean_id) await openOnBrew(c.env.DB, row.bean_id, row.brewed_at);
+  return c.json(row);
 });
 
 records.delete('/brews/:id', async (c) => {

@@ -1,4 +1,5 @@
 // App state, settings, backup and restore.
+import { BACKFILL_TIMELINE } from '../timeline';
 import { Hono } from 'hono';
 import { settingsPatch } from '@shared/schemas';
 import {
@@ -78,6 +79,8 @@ export async function importAll(db: D1Database, data: RatioExport) {
       );
     }
   }
+  // Backups from before v1.1 have no timelines: fill them from the bags' dates.
+  if (!data.tables.bean_events) for (const sql of BACKFILL_TIMELINE) stmts.push(db.prepare(sql));
   await db.batch(stmts);
 }
 

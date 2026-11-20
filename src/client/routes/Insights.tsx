@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { EXTRACTION, flagFor } from '@shared/lookups';
+import { EXTRACTION } from '@shared/lookups';
 import { daysBetween, MO, startOfDay } from '@shared/logic/dates';
 import { mean, streak } from '@shared/logic/model';
 import { fmtN, r1 } from '@shared/logic/units';
@@ -164,7 +164,7 @@ export function Insights() {
   const panels: PanelDef[] = [
     {
       id: 'glance',
-      icon: 'sparkle',
+      icon: 'eye',
       title: 'At a glance',
       size: 'full',
       body: (
@@ -202,7 +202,7 @@ export function Insights() {
       id: 'calendar',
       icon: 'cal',
       title: 'Your coffee calendar',
-      sub: 'Last 26 weeks',
+      sub: 'Each day you brewed',
       size: 'full',
       body: <Heatmap keys={m.brews.map((b) => b.key)} />,
     },
@@ -252,7 +252,7 @@ export function Insights() {
             <Rank
               rows={taste.slice(0, 12).map((g) => ({
                 key: g.k,
-                label: `${dim === 'origin' ? flagFor(g.k) + ' ' : ''}${g.k}`,
+                label: `${dim === 'origin' ? m.mark(g.k) + ' ' : ''}${g.k}`,
                 value: g.avg,
                 vl: `${fmtN(r1(g.avg))} · ${g.n} ${g.n === 1 ? 'brew' : 'brews'}`,
               }))}

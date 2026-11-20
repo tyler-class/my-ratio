@@ -158,6 +158,27 @@ export function useActions() {
       roasters: crud('roasters'),
       beans: crud('beans'),
       brews: crud('brews'),
+      /** A bag's timeline: each call returns (and stores) the bag as it now stands. */
+      timeline: {
+        add: (beanId: string, body: { status: string; on_day: string }) =>
+          run(async () => {
+            const row = await api.post<RowOf<'beans'>>(`/beans/${beanId}/events`, body);
+            upsert('beans')(row);
+            return row;
+          }),
+        update: (eventId: string, body: { on_day?: string; status?: string }) =>
+          run(async () => {
+            const row = await api.patch<RowOf<'beans'>>(`/bean-events/${eventId}`, body);
+            upsert('beans')(row);
+            return row;
+          }),
+        remove: (eventId: string) =>
+          run(async () => {
+            const row = await api.del<RowOf<'beans'>>(`/bean-events/${eventId}`);
+            upsert('beans')(row);
+            return row;
+          }),
+      },
       saveSettings: (patch: Partial<Settings>) =>
         run(async () => {
           const settings = await api.patch<Settings>('/settings', patch);

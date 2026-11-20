@@ -18,6 +18,7 @@ export const TABLE_COLUMNS = {
     'rest_until',
     'thawed_on',
     'finished_on',
+    'rest_days',
     'tasting_notes',
     'roaster_notes',
     'origins',
@@ -33,6 +34,7 @@ export const TABLE_COLUMNS = {
     'created_at',
     'updated_at',
   ],
+  bean_events: ['id', 'bean_id', 'status', 'on_day', 'created_at'],
   brews: [
     'id',
     'num',

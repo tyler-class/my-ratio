@@ -1,4 +1,4 @@
-import { BUY_AGAIN, flagFor } from '@shared/lookups';
+import { BUY_AGAIN } from '@shared/lookups';
 import { agoLabel, daysBetween, inDays, parseDay } from '@shared/logic/dates';
 import { r1 } from '@shared/logic/units';
 import type { BeanView, Model } from '@shared/logic/model';
@@ -27,7 +27,8 @@ export function stockLine(b: BeanView, m: Model, now = new Date()): string {
   }
 }
 
-export const flags = (b: { origins: string[] }) => b.origins.map(flagFor).join('');
+export const flags = (b: { origins: string[] }, m: Pick<Model, 'mark'>) =>
+  b.origins.map(m.mark).join('');
 
 export function BeanCard({ b, m }: { b: BeanView; m: Model }) {
   const sheets = useSheets();
@@ -44,11 +45,15 @@ export function BeanCard({ b, m }: { b: BeanView; m: Model }) {
       onKeyDown={(e) => e.key === 'Enter' && sheets.bean(b.id)}
     >
       <div className="hd">
-        {b.images[0] ? <Thumb img={b.images[0]} /> : <div className="flag">{flags(b) || '☕️'}</div>}
+        {b.images[0] ? (
+          <Thumb img={b.images[0]} />
+        ) : (
+          <div className="flag">{flags(b, m) || '☕️'}</div>
+        )}
         <div style={{ minWidth: 0 }}>
           <div className="bn">{b.name}</div>
           <div className="rn">
-            {b.images[0] && flags(b) ? flags(b) + ' ' : ''}
+            {b.images[0] && flags(b, m) ? flags(b, m) + ' ' : ''}
             {b.roasterName || 'No roaster'}
           </div>
         </div>

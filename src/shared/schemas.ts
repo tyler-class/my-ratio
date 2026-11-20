@@ -42,6 +42,7 @@ export const settingsPatch = z
     methods: z.array(name(60)).max(30),
     grinders: z.array(name(60)).max(30),
     temp_unit: z.enum(['F', 'C']),
+    origin_emojis: z.record(z.string().min(1).max(80), z.string().min(1).max(16)),
     currency: z
       .string()
       .transform((v) => v.trim().toUpperCase())
@@ -79,6 +80,7 @@ const beanFields = z.object({
   rest_until: day,
   thawed_on: day,
   finished_on: day,
+  rest_days: z.number().int().min(0).max(365).nullish(),
   tasting_notes: text(500),
   roaster_notes: text(),
   origins: tags,
@@ -98,6 +100,14 @@ export const beanInput = beanFields.extend({
   varieties: tags.default([]),
 });
 export const beanPatch = beanFields.partial();
+
+/** Correcting a timeline entry: its day (or its status). */
+export const beanEventPatch = z.object({
+  on_day: z.iso.date().optional(),
+  status: status.optional(),
+});
+/** Adding a timeline entry by hand (a change that happened before the app knew). */
+export const beanEventInput = z.object({ status, on_day: z.iso.date() });
 
 export const brewInput = z.object({
   bean_id: z.string().min(1, 'Pick a bean'),

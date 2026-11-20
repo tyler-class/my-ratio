@@ -54,6 +54,7 @@ function Pop({
   text,
   muted,
   startOpen,
+  onClose,
   children,
 }: {
   label: string;
@@ -62,9 +63,20 @@ function Pop({
   muted?: boolean;
   /** Open straight away (a date just added that you'll want to set). */
   startOpen?: boolean;
+  /** The pop-over closed (a pick, a tap outside, Escape). */
+  onClose?: () => void;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(startOpen ?? false);
+  const was = useRef(open);
+  const closed = useRef(onClose);
+  useEffect(() => {
+    closed.current = onClose;
+  });
+  useEffect(() => {
+    if (was.current && !open) closed.current?.();
+    was.current = open;
+  }, [open]);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const btn = useRef<HTMLButtonElement>(null);
   const pop = useRef<HTMLDivElement>(null);
@@ -170,12 +182,15 @@ export function DatePicker({
   label = 'Date',
   startOpen,
   allowNone = false,
+  onClose,
 }: {
   value: string;
   onChange: (v: string) => void;
   label?: string;
   /** Show the calendar straight away. */
   startOpen?: boolean;
+  /** The calendar closed. */
+  onClose?: () => void;
   /** The date is optional: it can be empty ("Not set") and the calendar offers Clear. */
   allowNone?: boolean;
 }) {
@@ -186,6 +201,7 @@ export function DatePicker({
       text={value ? dateLabel(value) : 'Not set'}
       muted={!value}
       startOpen={startOpen}
+      onClose={onClose}
     >
       <Calendar value={value} onPick={onChange} allowNone={allowNone} />
     </Pop>

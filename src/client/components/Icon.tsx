@@ -1,10 +1,11 @@
 // Thin line icons (24px grid, 1.6 stroke). Used sparingly: only where they carry meaning.
 const P = {
-  bag: '<rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M4 12h16"/>',
+  /** A coffee bag: a pouch with a crimped top and its one-way valve. */
+  bag: '<path d="M7 7.5h10l1.1 11.8a1.6 1.6 0 0 1-1.6 1.7H7.5a1.6 1.6 0 0 1-1.6-1.7z"/><path d="M7 7.5V3.5h10v4M7 5.5h10"/><circle cx="12" cy="12.5" r="1.5"/>',
   backpack:
     '<path d="M8 7V5a4 4 0 0 1 8 0v2"/><rect x="5" y="7" width="14" height="14" rx="3"/><path d="M9 14h6v3H9z"/>',
   nobag:
-    '<rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 3l18 18"/>',
+    '<path d="M7 7.5h10l1.1 11.8a1.6 1.6 0 0 1-1.6 1.7H7.5a1.6 1.6 0 0 1-1.6-1.7z"/><path d="M7 7.5V3.5h10v4M7 5.5h10"/><circle cx="12" cy="12.5" r="1.5"/><path d="M3 3l18 18"/>',
   layers: '<path d="M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   grip: '<circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>',
@@ -55,6 +56,8 @@ const P = {
   espresso:
     '<rect x="4" y="3" width="16" height="5" rx="1.5"/><path d="M6 8v12.5M18 8v12.5M4 20.5h16"/><path d="M10 8v2h4V8M14 9.5h3"/><path d="M9.5 14.5h5V17a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2z"/><circle cx="8" cy="5.5" r=".6" fill="currentColor" stroke="none"/>',
   drop: '<path d="M12 3.5c-3 4-6 7.2-6 10.5a6 6 0 0 0 12 0c0-3.3-3-6.5-6-10.5z"/>',
+  flame:
+    '<path d="M12 21c-3.9 0-6.5-2.6-6.5-6.2 0-3.3 2.3-5.2 3.6-7.6.4 1.6 1.2 2.6 2.3 3.2C11.6 7.6 12.5 5 15 3c-.3 3 1.1 4.7 2.3 6.5.8 1.2 1.2 2.5 1.2 4.1C18.5 18.3 15.9 21 12 21z"/><path d="M12 21c-1.7 0-2.8-1.2-2.8-2.8 0-1.8 1.5-2.6 2.2-4 .9 1 2.6 2 2.6 4.1 0 1.5-.9 2.7-2 2.7z"/>',
   target:
     '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>',
   // Dose and water held to the ratio (closed), or free (open).
@@ -111,6 +114,8 @@ const CERAMIC: Partial<Record<IconName, string>> = {
   chart: '/icons/insights.svg',
   settings: '/icons/settings.svg',
 };
+/** The line drawings themselves (24-unit grid), for art that draws an icon inside its own SVG. */
+export const ICON_PATHS: Readonly<Record<IconName, string>> = P;
 export const isCeramic = (name: IconName) => name in CERAMIC;
 
 export function Icon({
@@ -119,6 +124,7 @@ export function Icon({
   className = '',
   strokeWidth = 1.6,
   bare = false,
+  plain = false,
 }: {
   name: IconName;
   size?: number;
@@ -126,8 +132,10 @@ export function Icon({
   strokeWidth?: number;
   /** The stoneware piece alone, without its clay blob (on a brown background already). */
   bare?: boolean;
+  /** The simple line drawing, even for a section that has a stoneware piece. */
+  plain?: boolean;
 }) {
-  const art = CERAMIC[name];
+  const art = plain ? undefined : CERAMIC[name];
   if (art) {
     const px = Math.round(size * (bare ? 1.12 : 1.36));
     return (

@@ -48,7 +48,8 @@ const RSORTS = [
 type RSort = (typeof RSORTS)[number][0];
 
 // Search, sort and filters are remembered on this device and kept in the address.
-const VIEW = { v: 'beans', f: 'drinking', q: '', s: 'recent', r: '', rs: 'name' };
+// f: '' shows Drinking when anything is open, else every bag (so the list is never needlessly empty).
+const VIEW = { v: 'beans', f: '', q: '', s: 'recent', r: '', rs: 'name' };
 
 export function Beans() {
   const data = useModel();
@@ -58,13 +59,14 @@ export function Beans() {
   if (!data) return null;
   const { m } = data;
   const view = vw.v === 'roasters' ? 'roasters' : 'beans';
-  const filter = FILTERS.some((t) => t.k === vw.f) ? vw.f : 'drinking';
+  const usual = m.beans.some((b) => b.status === 'drinking') ? 'drinking' : 'all';
+  const filter = FILTERS.some((t) => t.k === vw.f) ? vw.f : usual;
   const q = vw.q;
   const setQ = (q: string) => setView({ q });
   const sort: Sort = SORTS.find(([k]) => k === vw.s)?.[0] ?? 'recent';
   const roaster = m.roasters.some((r) => r.id === vw.r) ? vw.r : null;
   const rsort: RSort = RSORTS.find(([k]) => k === vw.rs)?.[0] ?? 'name';
-  const active = (filter !== 'drinking' ? 1 : 0) + (roaster ? 1 : 0) + (sort !== 'recent' ? 1 : 0);
+  const active = (filter !== usual ? 1 : 0) + (roaster ? 1 : 0) + (sort !== 'recent' ? 1 : 0);
   const ql = q.trim().toLowerCase();
 
   const header = (
@@ -238,7 +240,7 @@ export function Beans() {
         <FilterSheet
           count={active}
           onClose={() => setFilters(false)}
-          onClear={() => setView({ f: 'drinking', r: '', s: 'recent' })}
+          onClear={() => setView({ f: '', r: '', s: 'recent' })}
         >
           <FilterGroup title="Status">
             <SlideToggle
@@ -298,6 +300,18 @@ export function Beans() {
             : filter === 'all'
               ? 'Add your first bag to get started.'
               : `Nothing under ${cur.name}.`}
+          {filter !== 'all' && m.beans.length > 0 && (
+            <div>
+              <button
+                type="button"
+                className="btn sm"
+                style={{ marginTop: 12 }}
+                onClick={() => setView({ f: 'all', q: '', r: '' })}
+              >
+                Show all {m.beans.length} {m.beans.length === 1 ? 'bag' : 'bags'}
+              </button>
+            </div>
+          )}
         </Empty>
       )}
     </div>

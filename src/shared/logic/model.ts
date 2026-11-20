@@ -1,6 +1,6 @@
 // Joins the raw rows into the view model the app renders: per-bag usage, ratings and
 // stock, plus household-wide burn rate and runway. Pure, so it's unit-tested.
-import { LIVE_STATUSES } from '../lookups';
+import { LIVE_STATUSES, flagFor } from '../lookups';
 import type { AppState, Bean, Brew, Roaster } from '../types';
 import { dayKey, daysBetween } from './dates';
 import { ratioOf } from './units';
@@ -49,6 +49,8 @@ export interface Model {
   avgDose: number;
   /** Average dose over the last 7 days (falls back to avgDose), for "brews left" estimates. */
   dose7d: number;
+  /** An origin's mark: its chosen emoji, else its country flag, else nothing. */
+  mark: (origin: string) => string;
 }
 
 export const mean = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
@@ -144,6 +146,7 @@ export function buildModel(state: AppState, now = new Date()): Model {
       mean(brews.filter((b) => b.dose_g && daysBetween(b.date, now) <= 6).map((b) => b.dose_g!)) ??
       mean(recentDoses) ??
       20,
+    mark: (o) => state.settings.origin_emojis?.[o] ?? flagFor(o),
   };
 }
 

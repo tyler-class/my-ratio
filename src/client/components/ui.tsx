@@ -29,20 +29,28 @@ export function ChoiceInput({
   placeholder?: string;
   small?: boolean;
 }) {
-  const known = options.some((o) => o === value);
-  const [typing, setTyping] = useState(!!value && !known);
+  // A value typed in earlier shows as its own chip, chosen.
+  const all = value && !options.includes(value) ? [...options, value] : options;
+  const [typing, setTyping] = useState(false);
+  const [draft, setDraft] = useState('');
+  const done = useRef(false);
+  const commit = () => {
+    if (done.current) return;
+    done.current = true;
+    const v = draft.trim();
+    setTyping(false);
+    setDraft('');
+    if (v && v !== value) onChange(v);
+  };
   return (
     <div className="seg">
-      {options.map((o) => (
+      {all.map((o) => (
         <button
           key={o}
           type="button"
           className={cx('chip', small && 'sm')}
-          aria-pressed={!typing && value === o}
-          onClick={() => {
-            setTyping(false);
-            onChange(value === o ? '' : o);
-          }}
+          aria-pressed={value === o}
+          onClick={() => onChange(value === o ? '' : o)}
         >
           {o}
         </button>
@@ -51,18 +59,29 @@ export function ChoiceInput({
         <input
           className="in chip-in"
           style={{ maxWidth: 220 }}
-          autoFocus={!value}
-          value={value}
-          placeholder={placeholder ?? 'Type one'}
-          onChange={(e) => onChange(e.target.value)}
+          autoFocus
+          value={draft}
+          placeholder={placeholder ?? 'Type one, then Enter'}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              commit();
+            } else if (e.key === 'Escape') {
+              done.current = true;
+              setTyping(false);
+              setDraft('');
+            }
+          }}
+          onBlur={commit}
         />
       ) : (
         <button
           type="button"
           className={cx('chip new', small && 'sm')}
           onClick={() => {
+            done.current = false;
             setTyping(true);
-            onChange('');
           }}
         >
           <Icon name="plus" size={14} /> New
@@ -76,8 +95,176 @@ export interface SelectGroup {
   label?: string;
   /** A line icon before the group's label. */
   icon?: IconName;
+  /** Or a badge before it (a bag status's coloured blob). */
+  badge?: ReactNode;
+  /** A class for the group's heading (a bag status: st-resting colours it). */
+  className?: string;
   /** `sub` follows the label, not bold (a bean's roaster after its name). */
   options: { value: string; label: string; sub?: string }[];
+}
+
+/** Calls `onClose` when `open` goes from true to false. */
+function useClosed(open: boolean, onClose?: () => void) {
+  const was = useRef(open);
+  const cb = useRef(onClose);
+  useEffect(() => {
+    cb.current = onClose;
+  });
+  useEffect(() => {
+    if (was.current && !open) cb.current?.();
+    was.current = open;
+  }, [open]);
+}
+
+/**
+ * Pick several from a long list: the field shows the chosen ones as pills (× removes one); open,
+ * a search box filters the list, each tap adds or removes one, and a name that isn't listed can
+ * be added. Closes on a tap outside or Escape.
+ */
+export function MultiSelect({
+  value,
+  options,
+  onChange,
+  decorate = (o) => o,
+  placeholder = 'Choose',
+  label,
+  startOpen = false,
+  single = false,
+  onClose,
+}: {
+  value: string[];
+  options: string[];
+  onChange: (v: string[]) => void;
+  decorate?: (o: string) => string;
+  placeholder?: string;
+  label: string;
+  startOpen?: boolean;
+  /** Just one: picking replaces it and closes the list (tap it again to clear). */
+  single?: boolean;
+  /** The list closed (a tap outside, Escape, or a single pick). */
+  onClose?: () => void;
+}) {
+  const [open, setOpen] = useState(startOpen);
+  useClosed(open, onClose);
+  const [q, setQ] = useState('');
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', away);
+    return () => document.removeEventListener('pointerdown', away);
+  }, [open]);
+  const toggle = (o: string) => {
+    if (single) {
+      onChange(value.includes(o) ? [] : [o]);
+      setOpen(false);
+      return;
+    }
+    onChange(value.includes(o) ? value.filter((x) => x !== o) : [...value, o]);
+  };
+  const all = [...value.filter((v) => !options.includes(v)), ...options];
+  const needle = q.trim().toLowerCase();
+  const shown = needle ? all.filter((o) => o.toLowerCase().includes(needle)) : all;
+  const exact = all.some((o) => o.toLowerCase() === needle);
+  return (
+    <div className="sel msel" ref={root}>
+      <div
+        className={cx('in msel-field', open && 'open')}
+        role="button"
+        tabIndex={0}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={label}
+        onClick={() => setOpen((x) => !x)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
+      >
+        {value.length ? (
+          value.map((v) => (
+            <span className="msel-pill" key={v}>
+              {decorate(v)}
+              <button
+                type="button"
+                aria-label={`Remove ${v}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggle(v);
+                }}
+              >
+                ×
+              </button>
+            </span>
+          ))
+        ) : (
+          <span className="msel-ph">{placeholder}</span>
+        )}
+        <Icon name="chev" size={16} />
+      </div>
+      {open && (
+        <div
+          className="sel-list msel-list"
+          role="listbox"
+          aria-multiselectable={!single}
+          aria-label={label}
+        >
+          <input
+            className="in msel-q"
+            autoFocus
+            value={q}
+            placeholder="Search"
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                // Close the list, not the sheet it's in.
+                e.nativeEvent.stopPropagation();
+                setOpen(false);
+              }
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                // The top match; a new value only when nothing matches.
+                const hit = shown.find((o) => o.toLowerCase() === needle) ?? shown[0];
+                if (hit) toggle(hit);
+                else if (needle) toggle(q.trim());
+                setQ('');
+              }
+            }}
+          />
+          {shown.map((o) => (
+            <button
+              key={o}
+              type="button"
+              role="option"
+              aria-selected={value.includes(o)}
+              className="sel-opt"
+              onClick={() => toggle(o)}
+            >
+              <span>{decorate(o)}</span>
+              {value.includes(o) && <Icon name="check" size={16} />}
+            </button>
+          ))}
+          {needle && !exact && (
+            <button
+              type="button"
+              className="sel-opt msel-add"
+              onClick={() => {
+                toggle(q.trim());
+                setQ('');
+              }}
+            >
+              <span>Add “{q.trim()}”</span>
+              <Icon name="plus" size={16} />
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** A styled dropdown: a field-like button that opens a list below it. */
@@ -86,13 +273,20 @@ export function Select({
   onChange,
   groups,
   placeholder = 'Choose',
+  startOpen = false,
+  onClose,
 }: {
   value: string;
   onChange: (v: string) => void;
   groups: SelectGroup[];
   placeholder?: string;
+  /** Open the list straight away (editing a field in place). */
+  startOpen?: boolean;
+  /** The list closed. */
+  onClose?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen);
+  useClosed(open, onClose);
   const [hi, setHi] = useState(-1);
   const root = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -158,10 +352,10 @@ export function Select({
         <span className="sel-val">
           {current ? (
             current.sub ? (
-              <>
+              <span className="sel-two">
                 <b>{current.label}</b>
-                <span className="sel-sub"> · {current.sub}</span>
-              </>
+                <span className="sel-sub">{current.sub}</span>
+              </span>
             ) : (
               current.label
             )
@@ -177,8 +371,8 @@ export function Select({
             g.options.length ? (
               <div key={g.label ?? gi} role="group" aria-label={g.label}>
                 {g.label && (
-                  <div className="sel-grp">
-                    {g.icon && <Icon name={g.icon} size={14} />}
+                  <div className={cx('sel-grp', g.className)}>
+                    {g.badge ?? (g.icon && <Icon name={g.icon} size={14} />)}
                     {g.label}
                   </div>
                 )}
@@ -196,10 +390,10 @@ export function Select({
                     >
                       <span>
                         {o.sub ? (
-                          <>
+                          <span className="sel-two">
                             <b>{o.label}</b>
-                            <span className="sel-sub"> · {o.sub}</span>
-                          </>
+                            <span className="sel-sub">{o.sub}</span>
+                          </span>
                         ) : (
                           o.label
                         )}
@@ -569,8 +763,29 @@ type SlideToggleProps<T extends string> = {
  * the toggle scrolls sideways. The thumb is measured from the chosen option. An option with a
  * tone (good, warn, bad, blue) tints the thumb and its label when chosen; others use the accent.
  */
+/** A titled group of fields in a form, on its own card. */
+export function FormSection({
+  icon,
+  title,
+  children,
+}: {
+  icon: IconName;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="form-sec">
+      <h3>
+        <Icon name={icon} size={17} />
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
 /** Irregular clay blobs behind the status steps (one shape per step, like the tab bar icons). */
-const STEP_BLOBS = [
+export const STEP_BLOBS = [
   'M63.0 32.0C62.8 33.7 62.3 35.5 61.6 37.2C61.0 38.8 60.0 40.4 59.1 41.8C58.1 43.3 57.0 44.6 56.0 45.8C54.9 47.1 53.8 48.2 52.7 49.4C51.7 50.6 50.6 51.7 49.5 52.9C48.4 54.0 47.3 55.2 46.0 56.2C44.7 57.3 43.3 58.3 41.8 59.0C40.3 59.8 38.7 60.4 37.0 60.7C35.4 61.0 33.6 61.1 32.0 61.0C30.3 60.8 28.6 60.5 27.0 60.0C25.4 59.6 23.9 59.0 22.3 58.4C20.8 57.8 19.3 57.2 17.8 56.5C16.3 55.8 14.8 55.1 13.3 54.2C11.9 53.3 10.4 52.3 9.1 51.2C7.8 50.0 6.5 48.7 5.5 47.2C4.5 45.8 3.7 44.1 3.2 42.4C2.7 40.7 2.4 38.9 2.3 37.2C2.2 35.4 2.4 33.7 2.6 32.0C2.8 30.3 3.2 28.6 3.6 27.0C4.0 25.3 4.5 23.7 5.1 22.2C5.7 20.6 6.3 19.1 7.1 17.6C7.8 16.1 8.7 14.6 9.8 13.3C10.8 12.0 12.0 10.8 13.3 9.7C14.6 8.6 16.0 7.7 17.5 7.0C19.0 6.2 20.6 5.7 22.2 5.2C23.8 4.8 25.5 4.5 27.1 4.3C28.7 4.1 30.3 4.0 32.0 4.0C33.6 4.0 35.2 4.2 36.8 4.4C38.4 4.7 40.0 5.0 41.6 5.5C43.1 6.0 44.7 6.6 46.2 7.3C47.7 8.1 49.1 8.9 50.5 9.9C51.9 10.8 53.2 11.9 54.4 13.1C55.7 14.3 56.9 15.5 58.0 16.9C59.1 18.3 60.1 19.8 60.9 21.4C61.7 23.0 62.3 24.8 62.7 26.5C63.0 28.3 63.1 30.2 63.0 32.0Z',
   'M62.9 32.0C62.7 33.7 62.4 35.5 61.8 37.2C61.3 38.9 60.6 40.6 59.8 42.1C59.0 43.6 58.1 45.1 57.1 46.4C56.0 47.8 54.9 49.1 53.8 50.3C52.6 51.4 51.3 52.5 50.0 53.5C48.7 54.4 47.3 55.3 45.9 56.1C44.5 56.8 43.0 57.5 41.5 58.1C39.9 58.6 38.4 59.1 36.8 59.5C35.2 59.9 33.6 60.2 32.0 60.4C30.3 60.5 28.6 60.6 26.9 60.4C25.3 60.3 23.5 60.0 22.0 59.4C20.4 58.9 18.8 58.1 17.4 57.2C16.0 56.3 14.6 55.2 13.5 54.0C12.3 52.8 11.3 51.5 10.3 50.1C9.3 48.8 8.4 47.4 7.6 46.0C6.7 44.6 5.8 43.2 5.0 41.7C4.2 40.3 3.4 38.7 2.8 37.1C2.1 35.5 1.5 33.7 1.2 32.0C1.0 30.2 0.9 28.3 1.1 26.5C1.3 24.7 1.9 22.9 2.7 21.3C3.5 19.7 4.6 18.2 5.8 16.8C7.0 15.5 8.4 14.4 9.8 13.3C11.1 12.3 12.6 11.4 14.0 10.6C15.4 9.7 16.8 8.9 18.2 8.1C19.6 7.4 21.0 6.6 22.5 5.9C24.0 5.3 25.5 4.6 27.1 4.2C28.6 3.8 30.3 3.5 32.0 3.5C33.6 3.5 35.3 3.7 36.9 4.0C38.5 4.3 40.1 4.9 41.6 5.6C43.1 6.2 44.5 7.0 45.9 7.8C47.3 8.7 48.6 9.5 50.0 10.5C51.3 11.4 52.7 12.4 54.0 13.5C55.3 14.6 56.6 15.7 57.7 17.1C58.8 18.4 59.9 19.9 60.7 21.5C61.5 23.1 62.2 24.8 62.5 26.6C62.9 28.3 63.0 30.2 62.9 32.0Z',
   'M60.4 32.0C60.7 33.6 60.9 35.3 60.8 37.0C60.7 38.7 60.4 40.5 59.8 42.1C59.3 43.7 58.5 45.3 57.7 46.8C56.8 48.3 55.7 49.7 54.6 50.9C53.4 52.2 52.1 53.4 50.8 54.4C49.5 55.5 48.1 56.5 46.6 57.4C45.2 58.2 43.6 59.0 42.0 59.6C40.4 60.2 38.8 60.7 37.1 61.1C35.4 61.4 33.7 61.6 32.0 61.6C30.2 61.6 28.5 61.4 26.8 61.1C25.1 60.8 23.4 60.4 21.8 59.8C20.2 59.2 18.6 58.4 17.2 57.6C15.7 56.7 14.3 55.7 13.0 54.5C11.8 53.4 10.6 52.1 9.6 50.7C8.7 49.3 7.8 47.8 7.2 46.3C6.5 44.7 6.1 43.1 5.7 41.5C5.3 39.9 5.1 38.3 4.9 36.7C4.8 35.1 4.7 33.5 4.7 32.0C4.7 30.4 4.7 28.8 4.8 27.2C5.0 25.6 5.1 23.9 5.5 22.3C5.8 20.7 6.3 19.1 6.9 17.5C7.6 16.0 8.4 14.4 9.4 13.0C10.4 11.7 11.6 10.4 12.9 9.2C14.1 8.1 15.6 7.1 17.1 6.2C18.5 5.3 20.1 4.5 21.7 3.8C23.3 3.2 25.0 2.6 26.7 2.2C28.4 1.8 30.2 1.5 32.0 1.4C33.7 1.3 35.6 1.3 37.3 1.7C39.0 2.0 40.8 2.6 42.4 3.3C44.0 4.1 45.5 5.2 46.8 6.3C48.1 7.5 49.2 8.9 50.2 10.2C51.2 11.6 52.0 13.0 52.8 14.4C53.6 15.8 54.3 17.2 55.0 18.6C55.7 20.0 56.4 21.4 57.1 22.8C57.8 24.2 58.5 25.7 59.0 27.2C59.6 28.7 60.1 30.3 60.4 32.0Z',
@@ -589,6 +804,7 @@ export function StatusPath<T extends string>({
   options,
   onChange,
   from,
+  art,
 }: {
   label: string;
   value: T | null | undefined;
@@ -596,6 +812,8 @@ export function StatusPath<T extends string>({
   onChange: (v: T) => void;
   /** Where it was before an unsaved change: that step is marked too, so the change shows. */
   from?: T | null;
+  /** The current step's own art, drawn on its blob (a bag's status: StatusArt). */
+  art?: (v: T, blob: string) => ReactNode;
 }) {
   const at = options.findIndex(([v]) => v === value);
   const was = from && from !== value ? from : null;
@@ -612,14 +830,21 @@ export function StatusPath<T extends string>({
           type="button"
           role="radio"
           aria-checked={i === at}
+          data-step={v}
           className={cx('spath-step', at >= 0 && i < at && 'done', v === was && 'was')}
           onClick={() => onChange(v)}
         >
           <span className="spath-blob">
-            <svg className="spath-shape" viewBox="0 0 64 64" aria-hidden="true">
-              <path d={STEP_BLOBS[i % STEP_BLOBS.length]} />
-            </svg>
-            {icon && <Icon name={icon} size={20} />}
+            {art && i === at ? (
+              art(v, STEP_BLOBS[i % STEP_BLOBS.length]!)
+            ) : (
+              <>
+                <svg className="spath-shape" viewBox="0 0 64 64" aria-hidden="true">
+                  <path d={STEP_BLOBS[i % STEP_BLOBS.length]} />
+                </svg>
+                {icon && <Icon name={icon} size={20} />}
+              </>
+            )}
           </span>
           <span className="spath-label">{text}</span>
         </button>

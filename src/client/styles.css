@@ -2808,3 +2808,995 @@ img.ceramic {
   stroke-dasharray: 5 4;
   stroke-linecap: round;
 }
+
+/* Options with a second line (the Bean picker): name bold on top, roaster below in regular. */
+.sel-two {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.25;
+  min-width: 0;
+}
+.sel-two .sel-sub {
+  font-size: 0.86em;
+}
+.sel-btn:has(.sel-two) {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.sel-list:has(.sel-two) .sel-opt {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+/* The status it had before an unsaved change: a dashed outline. */
+.spath-step.was .spath-shape path {
+  stroke: var(--accent);
+  stroke-width: 2.4;
+  stroke-dasharray: 5 4;
+  stroke-linecap: round;
+}
+
+/* Options with a second line (the Bean picker): name bold on top, roaster below in regular. */
+.sel-two {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.25;
+  min-width: 0;
+}
+.sel-two .sel-sub {
+  font-size: 0.86em;
+}
+.sel-btn:has(.sel-two) {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.sel-list:has(.sel-two) .sel-opt {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+/* The current status in its own colour: Ordered grey, Resting black, Freezing blue, Drinking the
+   app's brown, Finished green (with a darker green check). */
+.spath-step[aria-checked='true'][data-step='ordered'] .spath-shape path {
+  fill: #8b8178;
+}
+.spath-step[aria-checked='true'][data-step='resting'] .spath-shape path {
+  fill: #1f1915;
+}
+.spath-step[aria-checked='true'][data-step='freezing'] .spath-shape path {
+  fill: #3f82c4;
+}
+.spath-step[aria-checked='true'][data-step='finished'] .spath-shape path {
+  fill: #a8d5a0;
+}
+.spath-step[aria-checked='true']:is(
+    [data-step='ordered'],
+    [data-step='resting'],
+    [data-step='freezing']
+  )
+  .spath-blob {
+  color: #fff;
+}
+.spath-step[aria-checked='true'][data-step='finished'] .spath-blob {
+  color: #2d6a33;
+}
+/* Dark: black would vanish on the dark page, so Resting gets a faint light edge. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light'])
+    .spath-step[aria-checked='true'][data-step='resting']
+    .spath-shape
+    path {
+    fill: #000;
+    stroke: rgb(255 240 225 / 0.35);
+    stroke-width: 1.5;
+  }
+}
+:root[data-theme='dark'] .spath-step[aria-checked='true'][data-step='resting'] .spath-shape path {
+  fill: #000;
+  stroke: rgb(255 240 225 / 0.35);
+  stroke-width: 1.5;
+}
+
+/* The current status's art (StatusArt.tsx): receipts fan out, snow blows left, stars twinkle,
+   steam curls up, the check draws in. */
+.spath-blob .sx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.sx-paper {
+  transform-box: fill-box;
+  transform-origin: 50% 90%;
+  animation: sx-fan-l 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+.sx-paper.sx-r {
+  animation-name: sx-fan-r;
+}
+@keyframes sx-fan-l {
+  from {
+    transform: rotate(0) translateX(0);
+    opacity: 0;
+  }
+  to {
+    transform: rotate(-16deg) translateX(-2.2px);
+    opacity: 1;
+  }
+}
+@keyframes sx-fan-r {
+  from {
+    transform: rotate(0) translateX(0);
+    opacity: 0;
+  }
+  to {
+    transform: rotate(16deg) translateX(2.2px);
+    opacity: 1;
+  }
+}
+.sx-flake {
+  opacity: 0.85;
+  animation: sx-blow linear infinite;
+}
+@keyframes sx-blow {
+  from {
+    transform: translate(70px, -2px);
+  }
+  to {
+    transform: translate(-6px, 6px);
+  }
+}
+.sx-star {
+  opacity: 0.15;
+  animation: sx-twinkle 2.6s ease-in-out infinite;
+}
+@keyframes sx-twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+/* Steam: a short curl that travels up each S-shaped wisp, swaying a little, fading at the top. */
+.sx-steam {
+  stroke-dasharray: 0.34 2;
+  stroke-dashoffset: 0.34;
+  animation: sx-steam 2.1s cubic-bezier(0.45, 0.1, 0.55, 0.9) infinite;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+@keyframes sx-steam {
+  0% {
+    stroke-dashoffset: 0.34;
+    opacity: 0;
+    transform: skewX(0deg);
+  }
+  20% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.85;
+    transform: skewX(-6deg);
+  }
+  100% {
+    stroke-dashoffset: -1;
+    opacity: 0;
+    transform: skewX(5deg);
+  }
+}
+.sx-tick {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: sx-tick 0.5s 0.1s cubic-bezier(0.3, 0.8, 0.3, 1) forwards;
+}
+@keyframes sx-tick {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx * {
+    animation: none !important;
+  }
+  .sx-paper.sx-l {
+    transform: rotate(-16deg) translateX(-2.2px);
+  }
+  .sx-paper.sx-r {
+    transform: rotate(16deg) translateX(2.2px);
+  }
+  .sx-star {
+    opacity: 0.8;
+  }
+  .sx-steam {
+    stroke-dasharray: none;
+    opacity: 0.7;
+  }
+  .sx-tick {
+    stroke-dashoffset: 0;
+  }
+}
+/* Dark: a faint edge keeps the navy night sky from melting into the dark page. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .sx-resting > path:first-of-type {
+    stroke: rgb(255 240 225 / 0.3);
+    stroke-width: 1.2;
+  }
+}
+:root[data-theme='dark'] .sx-resting > path:first-of-type {
+  stroke: rgb(255 240 225 / 0.3);
+  stroke-width: 1.2;
+}
+
+/* ---------- A bag's screen (BeanView.tsx) ---------- */
+
+/* Header: the roaster under the name, a small cloud of origin / process / variety on the right. */
+.sh-head > div:first-child {
+  flex: 1;
+}
+.bv-sub {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.bv-roaster {
+  padding-top: 2px;
+}
+.bv-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  max-width: 62%;
+}
+.bv-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface2);
+  color: var(--ink2);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* The rest card, in the Resting status's navy. */
+.rest-card {
+  --navy: #1f2c55;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin: 14px 0 4px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--navy) 22%, var(--line));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--navy) 6%, var(--surface));
+}
+.rest-ring {
+  flex: none;
+  width: 66px;
+  height: 66px;
+}
+.rest-ring .track {
+  fill: none;
+  stroke: color-mix(in srgb, var(--navy) 14%, transparent);
+  stroke-width: 6;
+}
+.rest-ring .prog {
+  fill: none;
+  stroke: var(--navy);
+  stroke-width: 6;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.6s ease;
+}
+.rest-ring .n {
+  font: 700 18px var(--sans);
+  fill: var(--ink);
+}
+.rest-ring .of {
+  font: 600 8.5px var(--sans);
+  fill: var(--ink2);
+}
+.rest-card.ready .rest-ring .prog {
+  stroke: #2d6a33;
+}
+.rest-count {
+  flex: none;
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  background: var(--navy);
+  color: #fff;
+}
+.rest-count b {
+  font: 700 22px var(--sans);
+  line-height: 1;
+}
+.rest-count span {
+  font-size: 10px;
+  opacity: 0.8;
+}
+.rest-t {
+  flex: 1;
+  min-width: 0;
+}
+.rest-t1 {
+  font-weight: 700;
+  font-size: 16px;
+}
+.rest-t2 {
+  font-size: 13px;
+  color: var(--ink2);
+}
+.rest-t3 {
+  font-size: 12px;
+  color: var(--ink2);
+  opacity: 0.85;
+  margin-top: 2px;
+}
+.rest-link {
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.rest-edit {
+  margin-top: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .rest-card {
+    --navy: #4a63a8;
+  }
+  :root:not([data-theme='light']) .rest-count {
+    background: #1f2c55;
+  }
+}
+:root[data-theme='dark'] .rest-card {
+  --navy: #4a63a8;
+}
+:root[data-theme='dark'] .rest-count {
+  background: #1f2c55;
+}
+.buy-again {
+  margin: 14px 0 4px;
+}
+
+/* Tabs: Overview, Timeline, Dial-in. */
+.bv-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 16px 0 14px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--surface2);
+}
+.bv-tabs button {
+  flex: 1;
+  padding: 8px 0;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink2);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.bv-tabs button.on {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgb(60 30 10 / 0.12);
+}
+
+/* Overview cards: label on the left, value on the right; tap to edit the group. */
+.bv-card > h3 {
+  margin-bottom: 4px;
+}
+.bv-pen {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink2);
+  cursor: pointer;
+}
+.bv-rows {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.bv-row {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  padding: 9px 0;
+  border-top: 1px solid var(--surface2);
+}
+.bv-card > h3 + .bv-row,
+.bv-card > h3 + .bv-rows > .bv-row:first-child {
+  border-top: 0;
+}
+.bv-l {
+  font-size: 13px;
+  color: var(--ink2);
+}
+.bv-v {
+  text-align: right;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+.bv-v.unset {
+  font-weight: 400;
+  color: var(--ink2);
+  opacity: 0.8;
+}
+@media (hover: hover) and (pointer: fine) {
+  .bv-pen:hover,
+  .bv-rows:hover .bv-v {
+    color: var(--accent);
+  }
+}
+.bv-card.editing {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+.bv-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+/* Timeline: newest first, a dot per change in its status's colour, joined by a line. */
+.tl {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.tl-ev {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding-bottom: 14px;
+}
+.tl-ev:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  top: 34px;
+  bottom: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--line);
+}
+.tl-dot {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.tl-ev.s-ordered .tl-dot {
+  background: #8b8178;
+  color: #fff;
+}
+.tl-ev.s-freezing .tl-dot {
+  background: #3f82c4;
+  color: #fff;
+}
+.tl-ev.s-resting .tl-dot {
+  background: #1f2c55;
+  color: #fff;
+}
+.tl-ev.s-drinking .tl-dot {
+  background: var(--accent);
+  color: #fff;
+}
+.tl-ev.s-finished .tl-dot {
+  background: #a8d5a0;
+  color: #2d6a33;
+}
+.tl-ev.brew .tl-dot {
+  background: none;
+  border: 1.5px dashed color-mix(in srgb, var(--accent) 55%, var(--line));
+}
+.tl-b {
+  flex: 1;
+  min-width: 0;
+  padding-top: 4px;
+}
+.tl-t {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.tl-day .dt-field {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+.tl-day {
+  color: var(--ink2);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.tl-s {
+  font-size: 13px;
+  color: var(--ink2);
+}
+.tl-b .tl-rm {
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  min-height: 0;
+  color: var(--ink2);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  opacity: 0.8;
+}
+.tl-more {
+  display: block;
+  margin: -4px 0 14px 46px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.tl-sum {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.tl-sum > div {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.tl-sum b {
+  font-family: var(--serif);
+  font-size: 21px;
+}
+.tl-sum span {
+  font-size: 12px;
+  color: var(--ink2);
+}
+/* A date beside a text field fills its column like the field does. */
+.form-sec .two .dt-field {
+  width: 100%;
+}
+
+/* Choosing an emoji for a new origin. */
+.emoji-pick {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.emoji-q {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.emoji-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.emoji-opt {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface2);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.emoji-opt.on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.emoji-in {
+  width: 64px;
+  min-height: 38px;
+  padding: 6px 8px;
+  text-align: center;
+}
+.emoji-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 8px;
+}
+.emoji-link {
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.bv-flags {
+  margin-right: 6px;
+}
+
+/* The bean picker's status headings, in each status's colour (its badge is the selected step's). */
+.sel-grp .status-badge {
+  flex: none;
+}
+.sel-grp.st-ordered {
+  color: #776d64;
+}
+.sel-grp.st-freezing {
+  color: #3572ad;
+}
+.sel-grp.st-resting {
+  color: #2f4378;
+}
+.sel-grp.st-drinking {
+  color: var(--accent);
+}
+.sel-grp.st-finished {
+  color: #3c7c42;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .sel-grp.st-ordered {
+    color: #b9afa5;
+  }
+  :root:not([data-theme='light']) .sel-grp.st-freezing {
+    color: #7fb3e6;
+  }
+  :root:not([data-theme='light']) .sel-grp.st-resting {
+    color: #9fb1e6;
+  }
+  :root:not([data-theme='light']) .sel-grp.st-finished {
+    color: #9fd497;
+  }
+}
+:root[data-theme='dark'] .sel-grp.st-ordered {
+  color: #b9afa5;
+}
+:root[data-theme='dark'] .sel-grp.st-freezing {
+  color: #7fb3e6;
+}
+:root[data-theme='dark'] .sel-grp.st-resting {
+  color: #9fb1e6;
+}
+:root[data-theme='dark'] .sel-grp.st-finished {
+  color: #9fd497;
+}
+
+/* Each detail edits in place: a pencil beside the value; the editor uses the value's own type. */
+.bv-row {
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+}
+.bv-row.editing.wide {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+.bv-vw {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
+}
+button.bv-v {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-align: right;
+  cursor: pointer;
+}
+button.bv-v.unset {
+  font-weight: 400;
+}
+.bv-row .bv-pen {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin: -4px -6px -4px 0;
+  align-self: center;
+}
+.bv-ed {
+  min-width: 0;
+}
+/* Editing a value in place: the same type on a soft tint, no underline or box; units stay. */
+.bv-in-wrap {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+}
+.bv-in {
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  text-align: right;
+  outline: none;
+  box-shadow: none;
+}
+.bv-unit {
+  color: var(--ink2);
+  font-weight: 600;
+}
+.bv-ed {
+  display: flex;
+  justify-content: flex-end;
+}
+.bv-row.wide .bv-ed {
+  display: block;
+}
+.bv-in.multi,
+.bv-in.multi:focus {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  font-weight: 400;
+  text-align: left;
+  resize: none;
+  field-sizing: content;
+  outline: none;
+  box-shadow: none;
+}
+.bv-ed .dt-field,
+.bv-ed .sel-btn {
+  width: 100%;
+}
+
+/* Sheets: a line under the header; the body scrolls beneath it. */
+.sh-grab {
+  border-bottom: 1px solid var(--line);
+}
+
+/* A searchable multi-select (Origin): chosen ones as pills in the field, a list with search. */
+.msel-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 6px 36px 6px 8px;
+  position: relative;
+  cursor: pointer;
+}
+.msel-field > svg {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink2);
+  transition: transform 0.2s;
+}
+.msel-field.open > svg {
+  transform: translateY(-50%) rotate(180deg);
+}
+.msel-ph {
+  padding-left: 4px;
+  color: var(--ink2);
+  opacity: 0.8;
+}
+.msel-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+.msel-pill button {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.msel-list {
+  max-height: 320px;
+  padding-top: 0;
+}
+.msel-q {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 -6px 4px;
+  width: calc(100% + 12px);
+  border-width: 0 0 1px;
+  border-radius: 12px 12px 0 0;
+}
+.msel-list .sel-opt {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+}
+.msel-list .sel-opt[aria-selected='true'] {
+  font-weight: 600;
+  color: var(--accent);
+}
+.msel-add {
+  color: var(--accent) !important;
+}
+/* The roast day on the timeline: a warm ember. */
+.tl-ev.roast .tl-dot {
+  background: linear-gradient(180deg, #e0914f, #b5481c);
+  color: #fff;
+}
+
+/* ---- Editing in place, final: an outline (no shade, no layout change); fields keep their spot. */
+.bv-row {
+  min-height: 42px;
+  align-items: center;
+}
+.bv-in-wrap {
+  min-width: 150px;
+  padding: 0 6px;
+  border-radius: 7px;
+  background: none;
+  box-shadow: 0 0 0 1.5px var(--accent);
+}
+.bv-in-wrap .bv-in {
+  flex: 1;
+  min-width: 0;
+}
+/* A long text: left-aligned from after its label to the right edge, growing downward only. */
+.bv-row.long {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+}
+.bv-row.long .bv-vw {
+  justify-content: space-between;
+}
+.bv-row.long .bv-v {
+  text-align: left;
+  font-weight: 500;
+  white-space: pre-line;
+}
+.bv-row.long .bv-ed {
+  display: block;
+}
+.bv-row.long .bv-in.multi,
+.bv-row.long .bv-in.multi:focus {
+  padding: 0 6px;
+  margin: 0 -6px;
+  width: calc(100% + 12px);
+  background: none;
+  box-shadow: 0 0 0 1.5px var(--accent);
+  border-radius: 7px;
+  font-weight: 500;
+  line-height: inherit;
+}
+/* Pickers in place: a compact field the size of a value, the list dropping over the content. */
+.bv-ed .dt-field,
+.bv-ed .sel-btn,
+.bv-ed .msel-field {
+  width: auto;
+  min-width: 170px;
+  max-width: 100%;
+  min-height: 0;
+  height: auto;
+  padding: 1px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--surface);
+  box-shadow: 0 0 0 1.5px var(--accent);
+  font: inherit;
+  font-weight: 600;
+  line-height: inherit;
+}
+.bv-ed .sel-btn {
+  gap: 8px;
+}
+.bv-ed .msel-field {
+  flex-wrap: nowrap;
+  overflow: hidden;
+  gap: 4px;
+  padding-right: 26px;
+}
+.bv-ed .msel-field > svg {
+  right: 6px;
+}
+.bv-ed .msel-pill {
+  flex: none;
+  padding: 0 0 0 8px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.bv-ed .msel-pill button {
+  width: 18px;
+  height: 18px;
+}
+.bv-ed .sel-list {
+  left: auto;
+  right: 0;
+  width: max-content;
+  min-width: 240px;
+  max-width: min(320px, 82vw);
+}
+.sel-opt > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

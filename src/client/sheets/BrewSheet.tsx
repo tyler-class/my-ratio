@@ -19,8 +19,12 @@ import {
   Select,
   Sheet,
   SlideToggle,
+  FormSection,
+  STEP_BLOBS,
 } from '../components/ui';
 import { STATUS_ICON } from '../lib/statusIcons';
+import { StatusBadge } from '../components/StatusArt';
+import { ICON_PATHS } from '../components/Icon';
 import { useSheets, type LogPrefill } from './context';
 
 export interface RateValues {
@@ -380,210 +384,215 @@ export function BrewSheet({
               Delete
             </ConfirmButton>
           )}
-          {editing ? (
-            <button
-              type="button"
-              className="btn ghost"
-              onClick={() => sheets.log({ fromBrewId: editing.id })}
-            >
-              Brew again
-            </button>
-          ) : (
-            <button type="button" className="btn ghost" onClick={sheets.close}>
-              Cancel
-            </button>
-          )}
+          <button type="button" className="btn ghost" onClick={sheets.close}>
+            Cancel
+          </button>
           <button type="button" className="btn primary" disabled={busy} onClick={save}>
             {busy ? 'Saving…' : editing ? 'Save' : 'Log brew'}
           </button>
         </>
       }
     >
-      <Field label="Brew time">
-        <div className="flexrow" style={{ gap: 8 }}>
-          <DatePicker
-            value={whenDay}
-            label="Brew date"
-            onChange={(d) => set({ when: `${d}T${whenTime}` })}
+      <FormSection icon="dripper" title="Brew details">
+        <Field label="Brew time">
+          <div className="flexrow" style={{ gap: 8 }}>
+            <DatePicker
+              value={whenDay}
+              label="Brew date"
+              onChange={(d) => set({ when: `${d}T${whenTime}` })}
+            />
+            <TimePicker
+              value={whenTime}
+              label="Brew time"
+              allowNone={false}
+              onChange={(t) => set({ when: `${whenDay}T${t}` })}
+            />
+          </div>
+        </Field>
+        <Field label="Bean">
+          <Select
+            value={f.beanId}
+            onChange={pickBean}
+            placeholder="Choose a bean"
+            groups={groups.map((g) => ({
+              label: g.st.label,
+              badge: (
+                <StatusBadge
+                  status={g.st.key}
+                  blob={STEP_BLOBS[STATUSES.findIndex((x) => x.key === g.st.key)]!}
+                  icon={ICON_PATHS[STATUS_ICON[g.st.key]]}
+                />
+              ),
+              className: `st-${g.st.key}`,
+              options: g.items.map((b) => ({
+                value: b.id,
+                label: b.name,
+                sub: b.roasterName || undefined,
+              })),
+            }))}
           />
-          <TimePicker
-            value={whenTime}
-            label="Brew time"
-            allowNone={false}
-            onChange={(t) => set({ when: `${whenDay}T${t}` })}
-          />
-        </div>
-      </Field>
-      <Field label="Bean">
-        <Select
-          value={f.beanId}
-          onChange={pickBean}
-          placeholder="Choose a bean"
-          groups={groups.map((g) => ({
-            label: g.st.label,
-            icon: STATUS_ICON[g.st.key],
-            options: g.items.map((b) => ({
-              value: b.id,
-              label: b.name,
-              sub: b.roasterName || undefined,
-            })),
-          }))}
-        />
-        {m.beans.length === 0 && (
+          {m.beans.length === 0 && (
+            <button
+              type="button"
+              className="btn sm"
+              style={{ marginTop: 8 }}
+              onClick={() => sheets.beanForm()}
+            >
+              Add your first bag
+            </button>
+          )}
+        </Field>
+
+        {last && (
+          <div className="callout" style={{ marginBottom: 18 }}>
+            <b>Last time · {sinceLabel(last.date, now)}</b>
+            {fmtN(last.dose_g)} g → {last.water_ml != null ? Math.round(last.water_ml) : '–'} mL ·
+            grind {fmtN(last.grind)}
+            {last.rating != null ? ` · rated ${fmtN(last.rating)}` : ''}
+            {last.extraction
+              ? ` · ${EXTRACTION.find((e) => e.key === last.extraction)?.label}`
+              : ''}
+            {last.next_time && (
+              <div style={{ marginTop: 4, fontWeight: 650 }}>{last.next_time}</div>
+            )}
+            {best && best.id !== last.id && (
+              <div style={{ marginTop: 8 }}>
+                <button
+                  type="button"
+                  className="btn sm"
+                  onClick={() => setF((x) => ({ ...x, ...recipeFrom(best, s) }))}
+                >
+                  Use best recipe ({fmtN(best.rating)}): grind {fmtN(best.grind)}, 1:
+                  {best.ratio ? best.ratio.toFixed(1) : '?'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        <Field label="Method">
+          {methods.length ? (
+            <SlideToggle
+              label="Method"
+              value={f.method}
+              options={methods.map((v) => [v, v] as const)}
+              onChange={(v) => set({ method: v })}
+            />
+          ) : (
+            <ChoiceInput options={[]} value={f.method} onChange={(v) => set({ method: v })} />
+          )}
+        </Field>
+        <Field label="Grinder">
+          {grinders.length ? (
+            <SlideToggle
+              label="Grinder"
+              value={f.grinder}
+              options={grinders.map((v) => [v, v] as const)}
+              onChange={(v) => set({ grinder: v })}
+            />
+          ) : (
+            <ChoiceInput
+              options={[]}
+              value={f.grinder}
+              placeholder="Grinder name"
+              onChange={(v) => set({ grinder: v })}
+            />
+          )}
+        </Field>
+        <Field label="Grind setting">
+          <div className="step compact">
+            <button type="button" aria-label="Finer" onClick={() => nudgeGrind(-0.1)}>
+              −
+            </button>
+            <input
+              className="in"
+              inputMode="decimal"
+              value={f.grind}
+              placeholder="6.2"
+              onChange={(e) => set({ grind: e.target.value })}
+            />
+            <button type="button" aria-label="Coarser" onClick={() => nudgeGrind(0.1)}>
+              +
+            </button>
+          </div>
+        </Field>
+        <div className="fg dose-water">
+          <div>
+            <label className="lbl" htmlFor="brew-dose">
+              Dose (g)
+            </label>
+            <input
+              id="brew-dose"
+              className="in"
+              inputMode="decimal"
+              value={f.dose}
+              onChange={(e) => onDose(e.target.value)}
+            />
+          </div>
+          {/* Between the two: locked, they move together at the ratio. */}
           <button
             type="button"
-            className="btn sm"
-            style={{ marginTop: 8 }}
-            onClick={() => sheets.beanForm()}
+            className={`ratio-lock${f.lock ? ' on' : ''}`}
+            aria-pressed={f.lock}
+            aria-label={f.lock ? 'Dose and water locked to the ratio' : 'Dose and water free'}
+            title={
+              f.lock
+                ? 'Locked: changing the dose or water keeps the ratio'
+                : 'Free: changing the dose or water changes the ratio'
+            }
+            onClick={() => set({ lock: !f.lock })}
           >
-            Add your first bag
+            <Icon name={f.lock ? 'lock' : 'unlock'} size={18} />
           </button>
-        )}
-      </Field>
-
-      {last && (
-        <div className="callout" style={{ marginBottom: 18 }}>
-          <b>Last time · {sinceLabel(last.date, now)}</b>
-          {fmtN(last.dose_g)} g → {last.water_ml != null ? Math.round(last.water_ml) : '–'} mL ·
-          grind {fmtN(last.grind)}
-          {last.rating != null ? ` · rated ${fmtN(last.rating)}` : ''}
-          {last.extraction ? ` · ${EXTRACTION.find((e) => e.key === last.extraction)?.label}` : ''}
-          {last.next_time && <div style={{ marginTop: 4, fontWeight: 650 }}>{last.next_time}</div>}
-          {best && best.id !== last.id && (
-            <div style={{ marginTop: 8 }}>
-              <button
-                type="button"
-                className="btn sm"
-                onClick={() => setF((x) => ({ ...x, ...recipeFrom(best, s) }))}
-              >
-                Use best recipe ({fmtN(best.rating)}): grind {fmtN(best.grind)}, 1:
-                {best.ratio ? best.ratio.toFixed(1) : '?'}
-              </button>
-            </div>
-          )}
+          <div>
+            <label className="lbl" htmlFor="brew-water">
+              Water (mL)
+            </label>
+            <input
+              id="brew-water"
+              className="in"
+              inputMode="decimal"
+              value={f.water}
+              onChange={(e) => onWater(e.target.value)}
+            />
+          </div>
         </div>
-      )}
-
-      <Field label="Method">
-        {methods.length ? (
-          <SlideToggle
-            label="Method"
-            value={f.method}
-            options={methods.map((v) => [v, v] as const)}
-            onChange={(v) => set({ method: v })}
+        <Field label="Ratio">
+          <div className="ratio-in">
+            <span className="ratio-one" aria-hidden="true">
+              1 :
+            </span>
+            <input
+              className="in"
+              inputMode="decimal"
+              aria-label="Ratio, water to 1 of coffee"
+              value={f.ratio}
+              onChange={(e) => onRatio(e.target.value)}
+            />
+          </div>
+        </Field>
+        <Field label={`Water temp (°${s.temp_unit})`}>
+          <div className="flexrow">
+            <input
+              className="in"
+              style={{ maxWidth: 110 }}
+              inputMode="decimal"
+              value={f.temp}
+              onChange={(e) => set({ temp: e.target.value })}
+            />
+          </div>
+        </Field>
+        <Field label="Comments">
+          <NotesField
+            value={f.notes}
+            placeholder="60 g bloom 45 s, pours to 250/400/600, done 3:30"
+            onChange={(e) => set({ notes: e.target.value })}
           />
-        ) : (
-          <ChoiceInput options={[]} value={f.method} onChange={(v) => set({ method: v })} />
-        )}
-      </Field>
-      <Field label="Grinder">
-        {grinders.length ? (
-          <SlideToggle
-            label="Grinder"
-            value={f.grinder}
-            options={grinders.map((v) => [v, v] as const)}
-            onChange={(v) => set({ grinder: v })}
-          />
-        ) : (
-          <ChoiceInput
-            options={[]}
-            value={f.grinder}
-            placeholder="Grinder name"
-            onChange={(v) => set({ grinder: v })}
-          />
-        )}
-      </Field>
-      <Field label="Grind setting">
-        <div className="step compact">
-          <button type="button" aria-label="Finer" onClick={() => nudgeGrind(-0.1)}>
-            −
-          </button>
-          <input
-            className="in"
-            inputMode="decimal"
-            value={f.grind}
-            placeholder="6.2"
-            onChange={(e) => set({ grind: e.target.value })}
-          />
-          <button type="button" aria-label="Coarser" onClick={() => nudgeGrind(0.1)}>
-            +
-          </button>
-        </div>
-      </Field>
-      <div className="fg dose-water">
-        <div>
-          <label className="lbl" htmlFor="brew-dose">
-            Dose (g)
-          </label>
-          <input
-            id="brew-dose"
-            className="in"
-            inputMode="decimal"
-            value={f.dose}
-            onChange={(e) => onDose(e.target.value)}
-          />
-        </div>
-        {/* Between the two: locked, they move together at the ratio. */}
-        <button
-          type="button"
-          className={`ratio-lock${f.lock ? ' on' : ''}`}
-          aria-pressed={f.lock}
-          aria-label={f.lock ? 'Dose and water locked to the ratio' : 'Dose and water free'}
-          title={
-            f.lock
-              ? 'Locked: changing the dose or water keeps the ratio'
-              : 'Free: changing the dose or water changes the ratio'
-          }
-          onClick={() => set({ lock: !f.lock })}
-        >
-          <Icon name={f.lock ? 'lock' : 'unlock'} size={18} />
-        </button>
-        <div>
-          <label className="lbl" htmlFor="brew-water">
-            Water (mL)
-          </label>
-          <input
-            id="brew-water"
-            className="in"
-            inputMode="decimal"
-            value={f.water}
-            onChange={(e) => onWater(e.target.value)}
-          />
-        </div>
-      </div>
-      <Field label="Ratio">
-        <div className="ratio-in">
-          <span className="ratio-one" aria-hidden="true">
-            1 :
-          </span>
-          <input
-            className="in"
-            inputMode="decimal"
-            aria-label="Ratio, water to 1 of coffee"
-            value={f.ratio}
-            onChange={(e) => onRatio(e.target.value)}
-          />
-        </div>
-      </Field>
-      <Field label={`Water temp (°${s.temp_unit})`}>
-        <div className="flexrow">
-          <input
-            className="in"
-            style={{ maxWidth: 110 }}
-            inputMode="decimal"
-            value={f.temp}
-            onChange={(e) => set({ temp: e.target.value })}
-          />
-        </div>
-      </Field>
-      <Field label="Comments">
-        <NotesField
-          value={f.notes}
-          placeholder="60 g bloom 45 s, pours to 250/400/600, done 3:30"
-          onChange={(e) => set({ notes: e.target.value })}
-        />
-      </Field>
-      <RateFields v={rv} set={(p) => setRv((x) => ({ ...x, ...p }))} />
+        </Field>
+      </FormSection>
+      <FormSection icon="star" title="Rating & tasting">
+        <RateFields v={rv} set={(p) => setRv((x) => ({ ...x, ...p }))} />
+      </FormSection>
     </Sheet>
   );
 }

@@ -75,6 +75,60 @@ describe('records', () => {
     expect(cleared.process).toBeNull();
   });
 
+  it('keeps a timeline of status changes, and the bag follows edits to it', async () => {
+    const api = await session();
+    const b = (await api.post<Bean>('/beans', { name: 'Timeline', status: 'ordered' })).data;
+    expect(b.events.map((e) => e.status)).toEqual(['ordered']);
+    const frozen = (await api.patch<Bean>(`/beans/${b.id}`, { status: 'freezing' })).data;
+    expect(frozen.events.map((e) => e.status)).toEqual(['ordered', 'freezing']);
+    const rest = (await api.patch<Bean>(`/beans/${b.id}`, { status: 'resting', rest_days: 10 }))
+      .data;
+    expect(rest.events.map((e) => e.status)).toEqual(['ordered', 'freezing', 'resting']);
+    expect(rest.rest_days).toBe(10);
+    // Resting with no roast day: ready ten days after it started resting.
+    const since = rest.events.at(-1)!.on_day;
+    const ready = new Date(Date.parse(since + 'T00:00:00Z') + 10 * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    expect(rest.rest_until).toBe(ready);
+
+    // A day can't move past its neighbours, and correcting one never changes the status.
+    const lastId = rest.events.at(-1)!.id;
+    expect((await api.patch(`/bean-events/${lastId}`, { on_day: '2000-01-01' })).status).toBe(400);
+    const same = (await api.patch<Bean>(`/bean-events/${lastId}`, { on_day: since })).data;
+    expect(same.status).toBe('resting');
+
+    // Correct a day; remove the latest entry and the bag goes back to freezing.
+    const moved = (
+      await api.patch<Bean>(`/bean-events/${rest.events[0]!.id}`, { on_day: '2026-01-02' })
+    ).data;
+    expect(moved.events[0]!.on_day).toBe('2026-01-02');
+    const back = (await api.del<Bean>(`/bean-events/${rest.events.at(-1)!.id}`)).data;
+    expect(back.status).toBe('freezing');
+    // Add one that happened before, by hand.
+    const added = (
+      await api.post<Bean>(`/beans/${b.id}/events`, { status: 'resting', on_day: '2030-01-01' })
+    ).data;
+    expect(added.status).toBe('resting');
+    // The last entry can't go.
+    for (const e of added.events.slice(1)) await api.del(`/bean-events/${e.id}`);
+    expect((await api.del(`/bean-events/${added.events[0]!.id}`)).status).toBe(400);
+  });
+
+  it('logging a brew of a bag that isn’t open moves it to drinking', async () => {
+    const api = await session();
+    const b = (await api.post<Bean>('/beans', { name: 'Opens itself', status: 'resting' })).data;
+    await api.post('/brews', { bean_id: b.id, dose_g: 18 });
+    const st = (await api.get<AppState>('/state')).data;
+    const now = st.beans.find((x) => x.id === b.id)!;
+    expect(now.status).toBe('drinking');
+    expect(now.events.map((e) => e.status)).toEqual(['resting', 'drinking']);
+    // Another brew of the open bag adds nothing.
+    await api.post('/brews', { bean_id: b.id, dose_g: 18 });
+    const again = (await api.get<AppState>('/state')).data.beans.find((x) => x.id === b.id)!;
+    expect(again.events).toHaveLength(2);
+  });
+
   it('deleting a bag deletes its brews; deleting a roaster keeps its bags', async () => {
     const api = await session();
     const r = (await api.post<Roaster>('/roasters', { name: 'Gone Roasters' })).data;

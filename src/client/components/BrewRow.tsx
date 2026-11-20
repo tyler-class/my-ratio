@@ -18,7 +18,7 @@ export function recipeLine(b: BrewView, s: Settings, withMethod = true): string 
   return bits.join(' · ');
 }
 
-/** A brew in a list: tap it to open the brew (rating, notes, Brew again, Delete). */
+/** A brew in a list: tap it to open the brew (its recipe, rating and notes, Delete). */
 export function BrewRow({ b, s, showDate }: { b: BrewView; s: Settings; showDate?: string }) {
   const sheets = useSheets();
   return (

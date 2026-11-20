@@ -1,3 +1,4 @@
+import type { BeanEvent } from '@shared/logic/timeline';
 import { DEFAULT_METHODS, normalizeStatus, type BeanStatus, type BuyAgain } from '@shared/lookups';
 import { normalizeCurrency } from '@shared/currency';
 import type { AppState, Bean, Brew, ImageRef, Roaster, Settings, TempUnit } from '@shared/types';
@@ -101,6 +102,8 @@ export function toBean(r: Row, images: ImageRef[] = []): Bean {
     rest_until: s(r.rest_until),
     thawed_on: s(r.thawed_on),
     finished_on: s(r.finished_on),
+    rest_days: n(r.rest_days),
+    events: [],
     tasting_notes: s(r.tasting_notes),
     roaster_notes: s(r.roaster_notes),
     origins: arr(r.origins),
@@ -180,7 +183,33 @@ export async function loadBeans(db: D1Database, id?: string): Promise<Bean[]> {
     ),
     imagesByOwner(db, 'bean', id),
   ]);
-  return rows.map((r) => toBean(r, imgs.get(String(r.id)) ?? []));
+  const evs = await eventsByBean(db, id);
+  return rows.map((r) => ({
+    ...toBean(r, imgs.get(String(r.id)) ?? []),
+    events: evs.get(String(r.id)) ?? [],
+  }));
+}
+
+/** Each bag's timeline, oldest first. */
+async function eventsByBean(db: D1Database, beanId?: string): Promise<Map<string, BeanEvent[]>> {
+  const rows = await all(
+    db,
+    `SELECT * FROM bean_events${beanId ? ' WHERE bean_id = ?' : ''} ORDER BY on_day, created_at`,
+    ...(beanId ? [beanId] : []),
+  );
+  const m = new Map<string, BeanEvent[]>();
+  for (const r of rows) {
+    const k = String(r.bean_id);
+    if (!m.has(k)) m.set(k, []);
+    m.get(k)!.push({
+      id: String(r.id),
+      bean_id: k,
+      status: normalizeStatus(String(r.status)) as BeanStatus,
+      on_day: String(r.on_day),
+      created_at: String(r.created_at),
+    });
+  }
+  return m;
 }
 
 export async function loadBrews(db: D1Database, id?: string): Promise<Brew[]> {
@@ -191,6 +220,19 @@ export async function loadBrews(db: D1Database, id?: string): Promise<Brew[]> {
       ...(id ? [id] : []),
     )
   ).map(toBrew);
+}
+
+/** Chosen origin emoji; anything malformed is dropped. */
+function emojiMap(v: string | undefined): Record<string, string> {
+  try {
+    const o: unknown = JSON.parse(v ?? '{}');
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return {};
+    return Object.fromEntries(
+      Object.entries(o).filter(([, e]) => typeof e === 'string' && e.length > 0),
+    ) as Record<string, string>;
+  } catch {
+    return {};
+  }
 }
 
 /** Saved Insights layout; anything malformed is dropped so the client falls back to defaults. */
@@ -218,6 +260,7 @@ export const DEFAULT_SETTINGS: Settings = {
   insights_layout: [],
   telemetry: true,
   updates_set_up: false,
+  origin_emojis: {},
 };
 
 export async function loadSettings(db: D1Database): Promise<Settings> {
@@ -236,6 +279,7 @@ export async function loadSettings(db: D1Database): Promise<Settings> {
     currency_set: m.has('currency'),
     time_zone: m.get('time_zone') ?? DEFAULT_SETTINGS.time_zone,
     insights_layout: panels(m.get('insights_layout')),
+    origin_emojis: emojiMap(m.get('origin_emojis')),
     telemetry: kit.telemetry,
     updates_set_up: kit.updates_set_up,
   };
