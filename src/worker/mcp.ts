@@ -268,7 +268,7 @@ function beanDetail(b: BeanView, c: Ctx, brewLimit: number) {
         method: x.method,
         grinder: x.grinder,
         grind: x.grind,
-        ratio: `1:${x.ratio}`,
+        ratio: `1:${x.ratio}`, // exact, to two decimals
         water_temp: x.temp_c != null ? Math.round(tempOut(x.temp_c, c.s.temp_unit)!) : null,
         temp_unit: c.s.temp_unit,
         avg_rating: r1(x.avg),

@@ -182,7 +182,7 @@ export interface Combo {
   grinder: string | null;
   /** The grind as written ("4.2"). */
   grind: string;
-  /** The ratio to the nearest 0.5 (16.5 for 1:16.5). */
+  /** The ratio these brews used, exactly (to two decimals: 16.67 for 1:16.67). */
   ratio: number;
   n: number;
   avg: number;
@@ -208,17 +208,19 @@ export function bestCombos(
 ): Combo[] {
   const by = new Map<
     string,
-    { c: Omit<Combo, 'n' | 'avg' | 'bestId' | 'temp_c' | 'method'>; brews: BrewView[] }
+    { c: Omit<Combo, 'n' | 'avg' | 'bestId' | 'temp_c' | 'method' | 'ratio'>; brews: BrewView[] }
   >();
   for (const x of bean.rated) {
     const grind = grindLabel(x, scales);
     if (grind == null || !x.ratio) continue;
     if (onGrinder !== undefined && x.grinder !== onGrinder) continue;
-    const ratio = Math.round(x.ratio * 2) / 2;
+    // Ratios a gram of water apart (20 g to 333 or 334 g) are the same recipe: grouped to the
+    // nearest 0.1, and shown as the ratio actually used most.
+    const bucket = Math.round(x.ratio * 10) / 10;
     // Temperatures within half a degree (C) count as the same: 201°F and 94°C both land on 94.
     const temp = x.water_temp_c == null ? 'none' : Math.round(x.water_temp_c * 2) / 2;
-    const k = `${x.grinder ?? ''}|${grind}|${ratio}|${temp}`;
-    const e = by.get(k) ?? { c: { grinder: x.grinder, grind, ratio, ids: [] }, brews: [] };
+    const k = `${x.grinder ?? ''}|${grind}|${bucket}|${temp}`;
+    const e = by.get(k) ?? { c: { grinder: x.grinder, grind, ids: [] }, brews: [] };
     e.c.ids.push(x.id);
     e.brews.push(x);
     by.set(k, e);
@@ -230,6 +232,7 @@ export function bestCombos(
     bestId: brews.reduce((a, x) => (x.rating! > a.rating! ? x : a)).id,
     temp_c: mostCommon(brews.map((x) => x.water_temp_c)),
     method: mostCommon(brews.map((x) => x.method)),
+    ratio: mostCommon(brews.map((x) => Math.round(x.ratio! * 100) / 100))!,
   }));
   const repeated = all.filter((c) => c.n >= 2);
   const pool = repeated.length ? repeated : all;

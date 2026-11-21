@@ -1,6 +1,6 @@
 // Small hand-drawn SVG charts, styled by CSS classes so they follow the theme.
 import { dayKey, MO, startOfDay, WD } from '@shared/logic/dates';
-import { fmtN } from '@shared/logic/units';
+import { fmtN, fmtRatio } from '@shared/logic/units';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icon } from './Icon';
 
@@ -418,7 +418,8 @@ export function BrewHistory({
   };
   const sorted = [...pts].sort((a, b) => a.t - b.t);
   const n = sorted.length;
-  const ratioFmt = (v: number) => `1:${fmtN(Math.round(v * 10) / 10)}`;
+  // To two decimals, as typed on the brew (1:16.67), not rounded off.
+  const ratioFmt = fmtRatio;
   const hasGrind = sorted.some((p) => p.grind != null);
   const hasRatio = sorted.some((p) => p.ratio != null);
 

@@ -8,7 +8,7 @@ import { BUY_AGAIN, EXTRACTION, STATUSES, type BeanStatus } from '@shared/lookup
 import { dayKey, dayLabel, daysBetween, parseDay } from '@shared/logic/dates';
 import { bestCombos, type BeanView, type Model } from '@shared/logic/model';
 import { restInfo, stretches, type BeanEvent } from '@shared/logic/timeline';
-import { fmtInt, fmtN, plural, r1, tempOut } from '@shared/logic/units';
+import { fmtInt, fmtN, fmtRatio, plural, r1, tempOut } from '@shared/logic/units';
 import type { Settings } from '@shared/types';
 import { altitudeNum, currencyAffix, groupDigits, money, numStr, parseNum } from '../lib/format';
 import { roundMoney } from '@shared/currency';
@@ -1097,7 +1097,7 @@ function DialIn({ b, s, place }: { b: BeanView; s: Settings; place: BeanPlace })
                       </div>
                       <div>
                         <span className="lbl">Ratio</span>
-                        <b>1:{fmtN(c.ratio)}</b>
+                        <b>{fmtRatio(c.ratio)}</b>
                       </div>
                       <div>
                         <span className="lbl">Temp</span>

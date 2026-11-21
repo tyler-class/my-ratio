@@ -34,6 +34,9 @@ export function fmtN(n: number | null | undefined): string {
   return Number.isInteger(n) ? INT.format(n) : ONE.format(n);
 }
 
+/** A ratio as typed on a brew, to two decimals with no trailing zeros: "1:16.67", "1:16". */
+export const fmtRatio = (r: number) => `1:${String(Math.round(r * 100) / 100)}`;
+
 /** A count or amount rounded to a whole number, thousands grouped: "1,733". */
 export const fmtInt = (n: number) => INT.format(Math.round(n));
 

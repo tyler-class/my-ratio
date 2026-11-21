@@ -249,3 +249,14 @@ describe('bestCombos with method', () => {
     expect(best[0]).toMatchObject({ method: 'V60', n: 3 });
   });
 });
+
+describe('bestCombos ratio', () => {
+  it('shows the ratio actually used, not a rounded one', () => {
+    const at = (water: number, rating: number, d: number) =>
+      brew({ bean_id: 'q1', grind: 6, dose_g: 20, water_ml: water, rating, brewed_at: ago(d) });
+    const brews = [at(333.4, 9, 1), at(333.4, 9, 2), at(334, 8, 3)];
+    const m = buildModel(state([bean({ id: 'q1' })], brews), NOW);
+    const best = bestCombos(m.beanMap.get('q1')!);
+    expect(best[0]).toMatchObject({ ratio: 16.67, n: 3 });
+  });
+});
