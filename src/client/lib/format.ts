@@ -58,3 +58,14 @@ export function currencyAffix(currency: string): { prefix?: string; suffix?: str
 /** "1900" as "1,900" (in the reader's format); anything that isn't a plain number stays as is. */
 export const groupDigits = (s: string) =>
   /^\d+$/.test(s.trim()) ? Number(s.trim()).toLocaleString() : s;
+
+/**
+ * An altitude as just its number(s): "1800m MASL", "1,800 masl" and "1800 meters" all become
+ * "1800" ("1700-1900 m" keeps its range). The field's label carries the unit.
+ */
+export const altitudeNum = (s: string | null | undefined) => {
+  let v = (s ?? '').trim();
+  for (let i = 0; i < 3; i++)
+    v = v.replace(/\s*(m\.?\s*a\.?\s*s\.?\s*l\.?|meters?|metres?|m\.?)\s*$/i, '').trim();
+  return v.replace(/(\d),(\d{3})/g, '$1$2');
+};

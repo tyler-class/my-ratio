@@ -2,6 +2,7 @@
 import { dayKey, MO, startOfDay, WD } from '@shared/logic/dates';
 import { fmtN } from '@shared/logic/units';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Icon } from './Icon';
 
 /**
  * The width a chart actually has, so it draws at true size: text and dots stay the same size
@@ -353,3 +354,313 @@ export const Legend = () => (
     </span>
   </div>
 );
+
+export interface HistPt {
+  id: string;
+  num: number;
+  t: number;
+  rating: number | null;
+  /** Position along the dial (evenly spaced), or null without a numeric grind. */
+  grind: number | null;
+  /** The grind as written ("4.2"). */
+  grindLabel: string | null;
+  ratio: number | null;
+  /** Water temperature as shown ("201°F"), or null. */
+  temp: string | null;
+  grinder: string | null;
+  method: string | null;
+}
+
+/** A rating's colour: 7+ worked, 5 to 7 so-so, under 5 missed, none unrated. */
+export const ratingTone = (r: number | null) =>
+  r == null ? 'gray' : r >= 7 ? 'good' : r >= 5 ? 'warn' : 'bad';
+
+/** The star icon's outline (24-unit box), for marking the best combination in charts. */
+const ICON_STAR = 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z';
+
+const mmdd = (t: number) => {
+  const d = new Date(t);
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+};
+
+/**
+ * A bag's brews over time, in one chart: each brew a bar as tall as its rating (coloured by it,
+ * the number on top), in brew order with every brew's date along the bottom (angled to fit);
+ * over the bars, the grind as a line on the left axis and the ratio on the right. Tall green
+ * bars under the lines show the settings that worked. Tap to pick a brew.
+ */
+export function BrewHistory({
+  pts,
+  grindFmt,
+  onOpen,
+  marked,
+  faded,
+  initialSel,
+  onSelect,
+}: {
+  pts: HistPt[];
+  /** The brew picked to start with (coming back to the page). */
+  initialSel?: string | null;
+  onSelect?: (id: string | null) => void;
+  /** Brews on another grinder than the one shown: their bars fade. */
+  faded?: Set<string>;
+  grindFmt: (v: number) => string;
+  onOpen: (id: string) => void;
+  /** Brews in the best combination: a star above their bars. */
+  marked?: Set<string>;
+}) {
+  const [ref, W] = useWidth();
+  const scroller = useRef<HTMLDivElement>(null);
+  const [sel, setSelState] = useState<string | null>(initialSel ?? null);
+  const setSel = (id: string | null) => {
+    setSelState(id);
+    onSelect?.(id);
+  };
+  const sorted = [...pts].sort((a, b) => a.t - b.t);
+  const n = sorted.length;
+  const ratioFmt = (v: number) => `1:${fmtN(Math.round(v * 10) / 10)}`;
+  const hasGrind = sorted.some((p) => p.grind != null);
+  const hasRatio = sorted.some((p) => p.ratio != null);
+
+  // The axes stay put at either side; the plot between them scrolls sideways once every brew
+  // can't have room for its date ("11/18" needs about 32 px).
+  const l = hasGrind ? 40 : 8,
+    r = hasRatio ? 46 : 8,
+    t = 30,
+    b = 24,
+    H = 222;
+  const MIN_SLOT = 32;
+  const room = Math.max(1, W - l - r);
+  const PW = Math.max(room, n * MIN_SLOT);
+  const slot = PW / Math.max(1, n);
+  const cx = (i: number) => slot * (i + 0.5);
+  const bw = Math.max(3, Math.min(22, slot * 0.62));
+  const ry = (v: number) => H - b - (v / 10) * (H - t - b);
+
+  // When the chart scrolls: open on the picked brew (coming back to the page), else on the
+  // newest brews at the right-hand end.
+  const startSel = useRef(initialSel);
+  useLayoutEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const at = sorted.findIndex((p) => p.id === startSel.current);
+    el.scrollLeft = at >= 0 ? slot * (at + 0.5) - el.clientWidth / 2 : el.scrollWidth;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [n, PW]);
+
+  /** A line's own scale, padded so it doesn't sit on the chart's edges. */
+  const scaleOf = (get: (p: HistPt) => number | null, mid: boolean) => {
+    const vals = sorted.map(get).filter((v): v is number => v != null);
+    const min = Math.min(...vals),
+      max = Math.max(...vals);
+    const pad = (max - min || Math.abs(max) || 1) * 0.2;
+    const lo = min - pad,
+      hi = max + pad;
+    const y = (v: number) => H - b - ((v - lo) / (hi - lo || 1)) * (H - t - b);
+    const path = sorted
+      .map((p, i) => [i, get(p)] as const)
+      .filter(([, v]) => v != null)
+      .map(([i, v]) => `${cx(i).toFixed(1)},${y(v!).toFixed(1)}`)
+      .join(' ');
+    // Lowest and highest settings used (and the middle, where that reads as a value), as labels.
+    const ticks = [...new Set(mid ? [min, (min + max) / 2, max] : [min, max])];
+    return { y, path, ticks };
+  };
+  const g = hasGrind ? scaleOf((p) => p.grind, false) : null;
+  const ra = hasRatio ? scaleOf((p) => p.ratio, true) : null;
+  const pickedIdx = sorted.findIndex((p) => p.id === sel);
+  const picked = pickedIdx >= 0 ? sorted[pickedIdx]! : null;
+
+  // On click, not on touch-down: a swipe to scroll never picks a brew.
+  const pick = (e: React.MouseEvent<SVGSVGElement>) => {
+    const x = e.clientX - e.currentTarget.getBoundingClientRect().left;
+    const i = Math.max(0, Math.min(n - 1, Math.floor(x / slot)));
+    const p = sorted[i];
+    if (p) setSel(p.id === sel ? null : p.id);
+  };
+
+  return (
+    <div ref={ref} className="chart-box hist">
+      <div className="legend hist-legend">
+        <span>
+          <i className="hist-key bars" /> Rating
+        </span>
+        {hasGrind && (
+          <span>
+            <i className="hist-key grind" /> Grind (left)
+          </span>
+        )}
+        {hasRatio && (
+          <span>
+            <i className="hist-key ratio" /> Ratio (right)
+          </span>
+        )}
+      </div>
+      <div className="hist-row">
+        <svg className="chart" width={l} height={H} aria-hidden="true">
+          {g?.ticks.map((v) => (
+            <text key={v} x={l - 6} y={g.y(v) + 4} textAnchor="end" className="hist-ax grind">
+              {grindFmt(v)}
+            </text>
+          ))}
+        </svg>
+        <div ref={scroller} className="hist-scroll">
+          <svg
+            className="chart"
+            viewBox={`0 0 ${PW} ${H}`}
+            width={PW}
+            height={H}
+            role="img"
+            aria-label="Brews over time: rating, grind and ratio"
+            onClick={pick}
+          >
+            {picked && (
+              // The picked brew: a grey column from its star to its date.
+              <rect
+                className="hist-band"
+                x={cx(pickedIdx) - slot / 2 + 1}
+                y={2}
+                width={slot - 2}
+                height={H - 4}
+                rx={8}
+              />
+            )}
+            <line className="gl" x1={0} x2={PW} y1={ry(10)} y2={ry(10)} />
+            <line className="gl" x1={0} x2={PW} y1={ry(5)} y2={ry(5)} />
+            {/* Ratings: a soft bar to each brew's rating, the number above. */}
+            {sorted.map((p, i) => {
+              const x = cx(i) - bw / 2;
+              return (
+                <g key={p.id} className={faded?.has(p.id) ? 'hist-faded' : undefined}>
+                  {p.rating == null ? (
+                    <rect
+                      className="hist-none"
+                      x={x}
+                      y={ry(0) - 3}
+                      width={bw}
+                      height={3}
+                      rx={1.5}
+                    />
+                  ) : (
+                    <rect
+                      className={`bar-${ratingTone(p.rating)} hist-bar`}
+                      x={x}
+                      y={ry(p.rating)}
+                      width={bw}
+                      height={Math.max(2, ry(0) - ry(p.rating))}
+                      rx={Math.min(4, bw / 3)}
+                    />
+                  )}
+                  <text className="hist-rv" x={cx(i)} y={ry(10) - 5} textAnchor="middle">
+                    {p.rating != null ? fmtN(p.rating) : '–'}
+                  </text>
+                  {marked?.has(p.id) && (
+                    <path
+                      className="hist-star"
+                      d={ICON_STAR}
+                      transform={`translate(${cx(i) - 6} ${ry(10) - 28}) scale(0.5)`}
+                    />
+                  )}
+                </g>
+              );
+            })}
+            {g && (
+              <>
+                <polyline className="hist-line grind" points={g.path} />
+                {sorted.map((p, i) =>
+                  p.grind == null ? null : (
+                    <circle
+                      key={p.id}
+                      className={`hist-pt grind${faded?.has(p.id) ? ' hist-faded' : ''}`}
+                      cx={cx(i)}
+                      cy={g.y(p.grind)}
+                      r={i === pickedIdx ? 5 : 3.5}
+                    />
+                  ),
+                )}
+              </>
+            )}
+            {ra && (
+              <>
+                <polyline className="hist-line ratio" points={ra.path} />
+                {sorted.map((p, i) =>
+                  p.ratio == null ? null : (
+                    <circle
+                      key={p.id}
+                      className={`hist-pt ratio${faded?.has(p.id) ? ' hist-faded' : ''}`}
+                      cx={cx(i)}
+                      cy={ra.y(p.ratio)}
+                      r={i === pickedIdx ? 5 : 3.5}
+                    />
+                  ),
+                )}
+              </>
+            )}
+            <line className="ax" x1={0} x2={PW} y1={H - b} y2={H - b} />
+            {/* Every brew's date as MM/DD, straight under its bar. */}
+            {sorted.map((p, i) => (
+              <text
+                key={p.id}
+                className={i === pickedIdx ? 'hist-day on' : 'hist-day'}
+                x={cx(i)}
+                y={H - b + 14}
+                textAnchor="middle"
+              >
+                {mmdd(p.t)}
+              </text>
+            ))}
+          </svg>
+        </div>
+        <svg className="chart" width={r} height={H} aria-hidden="true">
+          {ra?.ticks.map((v) => (
+            <text key={v} x={6} y={ra.y(v) + 4} className="hist-ax ratio">
+              {ratioFmt(v)}
+            </text>
+          ))}
+        </svg>
+      </div>
+      {picked && (
+        <div className="hist-pick on">
+          <span className="hist-num">
+            <b>
+              Brew #{picked.num} on {MO[new Date(picked.t).getMonth()]}{' '}
+              {new Date(picked.t).getDate()}
+            </b>
+            {(picked.method || picked.grinder) && (
+              <span className="hist-grinder">
+                {[picked.method, picked.grinder].filter(Boolean).join(' · ')}
+              </span>
+            )}
+          </span>
+          <dl className="hist-vals">
+            <div>
+              <dt>Grind</dt>
+              <dd>{picked.grindLabel ?? '–'}</dd>
+            </div>
+            <div>
+              <dt>Ratio</dt>
+              <dd>{picked.ratio != null ? ratioFmt(picked.ratio) : '–'}</dd>
+            </div>
+            <div>
+              <dt>Temp</dt>
+              <dd>{picked.temp ?? '–'}</dd>
+            </div>
+            <div>
+              <dt>Rating</dt>
+              <dd>{picked.rating != null ? fmtN(picked.rating) : '–'}</dd>
+            </div>
+          </dl>
+          <button
+            type="button"
+            className="hist-open"
+            aria-label={`Open brew #${picked.num}`}
+            onClick={() => onOpen(picked.id)}
+          >
+            Open
+            <Icon name="chevRight" size={14} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

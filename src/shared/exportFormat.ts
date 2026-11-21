@@ -54,6 +54,7 @@ export const TABLE_COLUMNS = {
     'tasting_notes',
     'next_time',
     'rating_skipped',
+    'ratio_lock',
     'created_at',
     'updated_at',
   ],

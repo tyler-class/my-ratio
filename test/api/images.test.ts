@@ -149,4 +149,23 @@ describe('photo import and upload links', () => {
     });
     expect(res.status).toBe(401);
   });
+
+  it("puts a bag's photos in the order given, the first shown on its card", async () => {
+    const api = await session();
+    const b = (await api.post<Bean>('/beans', { name: 'Ordered photos' })).data;
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const up = await SELF.fetch(`${ORIGIN}/api/beans/${b.id}/images`, {
+        method: 'POST',
+        headers: { Cookie: api.cookie, Origin: ORIGIN, 'Content-Type': 'image/png' },
+        body: PNG,
+      });
+      ids.push(((await up.json()) as ImageRef).id);
+    }
+    const want = [ids[2]!, ids[0]!, ids[1]!];
+    const res = await api.patch<{ ids: string[] }>(`/beans/${b.id}/images/order`, { ids: want });
+    expect(res.data.ids).toEqual(want);
+    const state = (await api.get<AppState>('/state')).data;
+    expect(state.beans.find((x) => x.id === b.id)!.images.map((i) => i.id)).toEqual(want);
+  });
 });

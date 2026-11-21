@@ -68,6 +68,7 @@ function brew(p: Partial<Brew>): Brew {
   n++;
   return {
     rating_skipped: false,
+    ratio_lock: true,
     id: `x${n}`,
     num: n,
     bean_id: 'old',

@@ -3,19 +3,19 @@
 // to edit; Timeline lists its status changes, newest first; Dial-in has the grind-vs-rating plot,
 // stats and its brews.
 import { grindLabel, positionOf, scaleFor } from '@shared/grind';
-import { useRef, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { BUY_AGAIN, EXTRACTION, STATUSES, type BeanStatus } from '@shared/lookups';
 import { dayKey, dayLabel, daysBetween, parseDay } from '@shared/logic/dates';
-import { grindTable, type BeanView, type Model } from '@shared/logic/model';
+import { bestCombos, type BeanView, type Model } from '@shared/logic/model';
 import { restInfo, stretches, type BeanEvent } from '@shared/logic/timeline';
-import { fmtInt, fmtN, plural, r1 } from '@shared/logic/units';
+import { fmtInt, fmtN, plural, r1, tempOut } from '@shared/logic/units';
 import type { Settings } from '@shared/types';
-import { currencyAffix, currencySymbol, groupDigits, money, numStr, parseNum } from '../lib/format';
+import { altitudeNum, currencyAffix, groupDigits, money, numStr, parseNum } from '../lib/format';
 import { roundMoney } from '@shared/currency';
 import { useActions } from '../lib/queries';
 import { STATUS_ICON } from '../lib/statusIcons';
 import { useToast } from '../components/Toast';
-import { Legend, Scatter } from '../components/charts';
+import { BrewHistory, type HistPt } from '../components/charts';
 import { Photos } from '../components/Photos';
 import { Icon } from '../components/Icon';
 import { StatusArt } from '../components/StatusArt';
@@ -31,6 +31,7 @@ import {
 } from '../components/ui';
 import { OriginPicker, ProcessPicker, VarietyPicker, useBeanOptions } from './beanFields';
 import { useSheets } from './context';
+import { thenRest } from '../components/BeanCard';
 
 const statusOpts = STATUSES.map((s) => [s.key, s.label, STATUS_ICON[s.key]] as const);
 type Tab = 'overview' | 'timeline' | 'dialin';
@@ -50,12 +51,56 @@ function shortDay(day: string): string {
   });
 }
 
-export function BeanSheet({ m, s, beanId }: { m: Model; s: Settings; beanId: string }) {
+/**
+ * Where a bag's page was left: its tab, how far it was scrolled, and on Brews the picked brew
+ * and grinder. Opening a brew from the page and closing it comes back to exactly that.
+ */
+interface BeanPlace {
+  tab: Tab;
+  scroll: number;
+  sel: string | null;
+  grinder: string | null;
+}
+const places = new Map<string, BeanPlace>();
+const placeOf = (id: string): BeanPlace =>
+  places.get(id) ?? { tab: 'overview', scroll: 0, sel: null, grinder: null };
+const keepPlace = (id: string, p: Partial<BeanPlace>) => places.set(id, { ...placeOf(id), ...p });
+
+export function BeanSheet({
+  m,
+  s,
+  beanId,
+  back,
+}: {
+  m: Model;
+  s: Settings;
+  beanId: string;
+  /** Coming back to the page (closing a brew opened from it): restore where it was. */
+  back?: boolean;
+}) {
   const b = m.beanMap.get(beanId);
   const sheets = useSheets();
   const actions = useActions();
   const toast = useToast();
-  const [tab, setTab] = useState<Tab>('overview');
+  // A fresh visit starts at the top of Details; coming back picks up where it was.
+  const [start] = useState(() => {
+    if (!back) places.delete(beanId);
+    return placeOf(beanId);
+  });
+  const [tab, setTabState] = useState<Tab>(start.tab);
+  const setTab = (t: Tab) => {
+    setTabState(t);
+    keepPlace(beanId, { tab: t, sel: null });
+  };
+  const anchor = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const body = anchor.current?.closest('.sh-body');
+    if (!body) return;
+    if (start.scroll) body.scrollTop = start.scroll;
+    const onScroll = () => keepPlace(beanId, { scroll: body.scrollTop });
+    body.addEventListener('scroll', onScroll, { passive: true });
+    return () => body.removeEventListener('scroll', onScroll);
+  }, [beanId, start.scroll]);
   if (!b) return null;
 
   const setStatus = async (k: BeanStatus | null) => {
@@ -96,7 +141,7 @@ export function BeanSheet({ m, s, beanId }: { m: Model; s: Settings; beanId: str
           <ConfirmButton
             className="left"
             ask={`Delete ${b.name}?`}
-            detail={b.brews.length ? `Its ${plural(b.brews.length, 'brew')} go too.` : undefined}
+            detail={b.brews.length ? 'Brews on this bean get deleted too' : undefined}
             onConfirm={() => {
               const undo = actions.beans.removeLater(b.id);
               sheets.close();
@@ -115,6 +160,7 @@ export function BeanSheet({ m, s, beanId }: { m: Model; s: Settings; beanId: str
         </>
       }
     >
+      <div ref={anchor} hidden />
       <div className="bv-status">
         <StatusPath
           label="Status"
@@ -140,6 +186,18 @@ export function BeanSheet({ m, s, beanId }: { m: Model; s: Settings; beanId: str
             <i style={{ width: `${Math.min(100, (b.used / b.bag_g) * 100)}%` }} />
           </div>
         ) : null}
+        {/* In the freezer: the rest still to come once it's out, in the gap under the Freezing
+            step (like the drinking line), so it never changes the height. */}
+        {thenRest(b) && (
+          <span
+            className="bv-then"
+            style={{
+              left: `${((statusOpts.findIndex(([k]) => k === 'freezing') + 0.5) / statusOpts.length) * 100}%`,
+            }}
+          >
+            {thenRest(b)}
+          </span>
+        )}
       </div>
       {b.status === 'resting' && <RestCard b={b} />}
       {b.status === 'finished' && (
@@ -170,7 +228,7 @@ export function BeanSheet({ m, s, beanId }: { m: Model; s: Settings; beanId: str
       </div>
       {tab === 'overview' && <Overview b={b} m={m} s={s} />}
       {tab === 'timeline' && <Timeline b={b} />}
-      {tab === 'dialin' && <DialIn b={b} s={s} />}
+      {tab === 'dialin' && <DialIn b={b} s={s} place={start} />}
     </Sheet>
   );
 }
@@ -416,7 +474,7 @@ function InlineText({
   multiline?: boolean;
   numeric?: boolean;
   placeholder?: string;
-  /** A unit shown before or after the number while editing ($, g, days, MASL). */
+  /** A unit shown before or after the number while editing ($, g, days). */
   prefix?: string;
   suffix?: string;
 }) {
@@ -499,7 +557,7 @@ function Overview({ b, m, s }: { b: BeanView; m: Model; s: Settings }) {
   };
   const show = (v: string | null | undefined, empty = '—') =>
     v && v.trim() ? { value: v } : { value: empty, unset: true };
-  const altitude = b.altitude?.replace(/\s*m\.?\s*a\.?\s*s\.?\s*l\.?\s*$/i, '');
+  const altitude = altitudeNum(b.altitude);
   return (
     <>
       <section className="form-sec bv-card">
@@ -548,7 +606,7 @@ function Overview({ b, m, s }: { b: BeanView; m: Model; s: Settings }) {
           }
         />
         <Field1
-          label="Bag size (grams)"
+          label="Bag size"
           {...(b.bag_g != null ? { value: `${fmtN(b.bag_g)} g` } : { value: '—', unset: true })}
           editor={(close) => (
             <InlineText
@@ -561,11 +619,11 @@ function Overview({ b, m, s }: { b: BeanView; m: Model; s: Settings }) {
           )}
         />
         <Field1
-          label={`Cost (${currencySymbol(s.currency)})`}
+          label="Cost"
           {...(b.cost != null
             ? {
                 value: money(b.cost, s.currency),
-                sub: b.perG ? `${money(b.perG, s.currency)} a gram` : undefined,
+                sub: b.perG ? `${money(b.perG * 100, s.currency)} per 100 g` : undefined,
               }
             : { value: '—', unset: true })}
           editor={(close) => (
@@ -645,12 +703,11 @@ function Overview({ b, m, s }: { b: BeanView; m: Model; s: Settings }) {
         <Field1 label="Region / farm" {...show(b.region)} editor={text('region')} />
         <Field1
           label="Altitude (MASL)"
-          {...show(altitude ? `${groupDigits(altitude)} MASL` : null)}
+          {...show(altitude ? groupDigits(altitude) : null)}
           editor={(close) => (
             <InlineText
               numeric
-              suffix="MASL"
-              value={altitude ?? ''}
+              value={altitude}
               done={close}
               onSave={(v) => save({ altitude: v.trim() })}
             />
@@ -780,21 +837,27 @@ function RoasterPick({ b, m, done }: { b: BeanView; m: Model; done: () => void }
 
 /** How long a status lasted, said plainly: "On order for 8 days, until Nov 11". */
 function stretchLine(status: BeanStatus, days: number, to: string | null): string | null {
-  if (status === 'finished') return null;
-  const how = {
-    ordered: 'On order for',
-    freezing: 'In the freezer for',
-    resting: 'Resting for',
-    drinking: 'Drinking for',
-  }[status];
-  const span = `${how} ${plural(days, 'day')}${to ? `, until ${shortDay(to)}` : ' so far'}`;
-  // Freezer time doesn't count toward rest.
-  return status === 'freezing' ? `${span} · rest paused` : span;
+  const until = to ? `, until ${shortDay(to)}` : ' so far';
+  const n = plural(days, 'day');
+  switch (status) {
+    case 'ordered':
+      return `On order for ${n}${until}`;
+    case 'freezing':
+      return days ? `Frozen for ${n}` : 'Frozen starting today';
+    case 'resting':
+      if (to) return `Rested for ${n}${until}`;
+      return days ? `Resting for ${n} so far` : 'Resting started today';
+    case 'drinking':
+      if (to) return `Drank for ${n}${until}`;
+      return days ? `Drinking for ${n} so far` : 'Drinking started today';
+    default:
+      return null;
+  }
 }
 
 const EVENT_TITLE: Record<BeanStatus, string> = {
   ordered: 'Ordered',
-  freezing: 'Into the freezer',
+  freezing: 'Freezing',
   resting: 'Resting',
   drinking: 'Drinking',
   finished: 'Finished',
@@ -803,6 +866,7 @@ const EVENT_TITLE: Record<BeanStatus, string> = {
 /** The timeline, newest first: four entries, then Show more. */
 function Timeline({ b }: { b: BeanView }) {
   const actions = useActions();
+  const sheets = useSheets();
   const [all, setAll] = useState(false);
   const today = dayKey(new Date());
   const st = stretches(b.events, today);
@@ -853,7 +917,8 @@ function Timeline({ b }: { b: BeanView }) {
                 </div>
               </li>
             );
-          if (it.kind === 'brew')
+          if (it.kind === 'brew') {
+            const fb = b.brews.at(-1)!;
             return (
               <li className="tl-ev brew" key="brew">
                 <span className="tl-dot">
@@ -864,12 +929,23 @@ function Timeline({ b }: { b: BeanView }) {
                     <b>First brew</b>
                     <span className="tl-day">{shortDay(it.day)}</span>
                   </div>
+                  <div className="tl-s">
+                    <button
+                      type="button"
+                      className="tl-link"
+                      onClick={() => sheets.editBrew(fb.id)}
+                    >
+                      Brew #{fb.num}
+                    </button>
+                    {fb.rating != null && ` · rated ${fmtN(fb.rating)}`}
+                  </div>
                 </div>
               </li>
             );
+          }
           const title =
             it.e.status === 'resting' && it.prev === 'freezing'
-              ? 'Out of the freezer, resting'
+              ? 'Thawed and resting'
               : EVENT_TITLE[it.e.status];
           const sub = stretchLine(it.e.status, it.days, it.to);
           return (
@@ -912,52 +988,134 @@ function Timeline({ b }: { b: BeanView }) {
   );
 }
 
-function DialIn({ b, s }: { b: BeanView; s: Settings }) {
+function DialIn({ b, s, place }: { b: BeanView; s: Settings; place: BeanPlace }) {
   const sheets = useSheets();
   const now = new Date();
-  const pts = b.brews
-    .filter((x) => x.grind != null && x.rating != null)
-    .map((x) => {
-      const ex = EXTRACTION.find((e) => e.key === x.extraction);
-      return {
-        // Evenly spaced along the dial (Ode 4.2 sits two thirds of the way to 5).
-        x: positionOf(x.grind!, scaleFor(x.grinder, s.grind_scales)),
-        y: x.rating!,
-        tone: ex?.tone ?? 'a',
-        title: `Grind ${grindLabel(x, s.grind_scales)} · rated ${fmtN(x.rating)}${ex ? ' · ' + ex.label : ''}`,
-      };
-    });
-  const gx = pts.map((p) => p.x);
-  const gRows = grindTable(b, s.grind_scales);
+  // Grind settings only compare on one grinder: with several, a switch picks which shows (the
+  // best recipe's to start); the other grinders' brews fade. Best Combination looks across all.
+  const setupOf = (x: { grinder: string | null }) => x.grinder ?? '';
+  const setups = [...new Set(b.brews.map(setupOf))];
+  const setupLabel = (k: string) => k || 'No grinder';
+  const [chosen, setChosenState] = useState<string | null>(place.grinder);
+  const setChosen = (k: string) => {
+    setChosenState(k);
+    keepPlace(b.id, { grinder: k });
+  };
+  const combos = bestCombos(b, s.grind_scales);
+  const setup =
+    chosen != null && setups.includes(chosen)
+      ? chosen
+      : combos[0]
+        ? setupOf(combos[0])
+        : (setups[0] ?? '');
+  const grinder = setup || null;
+  const tempLabel = (c: number | null) =>
+    // Whole degrees: a tenth of a degree is noise here.
+    c == null ? null : `${Math.round(tempOut(c, s.temp_unit)!)}°${s.temp_unit}`;
+  const scale = scaleFor(grinder, s.grind_scales);
+  const grindNames = new Map<number, string>();
+  const pts: HistPt[] = b.brews.map((x) => {
+    const g = x.grind != null && setupOf(x) === setup ? positionOf(x.grind, scale) : null;
+    const label = grindLabel(x, s.grind_scales);
+    if (g != null && label) grindNames.set(g, label);
+    return {
+      id: x.id,
+      num: x.num,
+      t: x.date.getTime(),
+      rating: x.rating,
+      grind: g,
+      grindLabel: label,
+      ratio: x.ratio,
+      temp: tempLabel(x.water_temp_c),
+      grinder: x.grinder,
+      method: x.method,
+    };
+  });
+  // The grind and ratio that rated best together (ties all listed), starred in the chart.
+  const marked = new Set(combos.flatMap((c) => c.ids));
+  const faded = new Set(
+    setups.length > 1 ? b.brews.filter((x) => setupOf(x) !== setup).map((x) => x.id) : [],
+  );
   return (
     <>
       <section className="form-sec bv-card">
         <h3>
           <Icon name="target" size={17} />
-          Grind vs rating
+          Brew history
         </h3>
-        {pts.length >= 2 ? (
+        {b.brews.length >= 2 ? (
           <>
-            <Scatter
+            {setups.length > 1 && (
+              <div className="hist-grinders">
+                <SlideToggle
+                  label="Grinder"
+                  className="fit"
+                  value={setup}
+                  options={setups.map((k) => [k, setupLabel(k)] as const)}
+                  onChange={setChosen}
+                />
+              </div>
+            )}
+            <BrewHistory
               pts={pts}
-              xMin={Math.floor(Math.min(...gx) - 0.5)}
-              xMax={Math.ceil(Math.max(...gx) + 0.5)}
-              yMin={0}
-              yMax={10}
-              xStep={1}
-              yStep={2}
+              faded={faded}
+              grindFmt={(v) => grindNames.get(v) ?? fmtN(r1(v))}
+              onOpen={(id) => sheets.editBrew(id)}
+              initialSel={place.sel}
+              onSelect={(sel) => keepPlace(b.id, { sel })}
+              marked={marked}
             />
-            <Legend />
-            {gRows[0] && (
-              <div className="hint">
-                Best average: grind {gRows[0].grind} ({fmtN(r1(gRows[0].avg))},{' '}
-                {plural(gRows[0].n, 'brew')})
+            {combos.length > 0 && (
+              <div className="combo-list">
+                {combos.map((c) => (
+                  <div className="combo" key={`${c.grind}|${c.ratio}`}>
+                    <div className="combo-top">
+                      <div className="combo-h">
+                        <Icon name="star" size={18} />
+                        {combos.length > 1 ? 'Best Combination (a tie)' : 'Best Combination'}
+                      </div>
+                      {/* Only for a bag you can brew now: resting or drinking. */}
+                      {(b.status === 'resting' || b.status === 'drinking') && (
+                        <button
+                          type="button"
+                          className="btn sm"
+                          onClick={() => sheets.log({ fromBrewId: c.bestId })}
+                        >
+                          Brew this
+                        </button>
+                      )}
+                    </div>
+                    {(c.method || c.grinder) && (
+                      <div className="combo-g">
+                        {[c.method, c.grinder].filter(Boolean).join(' · ')}
+                      </div>
+                    )}
+                    <div className="combo-v">
+                      <div>
+                        <span className="lbl">Grind</span>
+                        <b>{c.grind}</b>
+                      </div>
+                      <div>
+                        <span className="lbl">Ratio</span>
+                        <b>1:{fmtN(c.ratio)}</b>
+                      </div>
+                      <div>
+                        <span className="lbl">Temp</span>
+                        <b>{tempLabel(c.temp_c) ?? '–'}</b>
+                      </div>
+                      <div>
+                        <span className="lbl">Avg rating</span>
+                        <b>{fmtN(r1(c.avg))}</b>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </>
         ) : (
           <p className="hint">
-            Rate two brews with a grind setting to see how grind changes the cup.
+            Log two brews of this bag to see how rating, grind and ratio change over time.
           </p>
         )}
       </section>

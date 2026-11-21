@@ -2,14 +2,13 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useModel } from '../lib/queries';
 import { BeanForm, BeanSheet, RoasterSheet } from './BeanSheets';
 import { AboutSheet } from './AboutSheet';
-import { BrewSheet, RateSheet } from './BrewSheet';
+import { BrewSheet } from './BrewSheet';
 import { SheetCtx, type LogPrefill, type SheetApi } from './context';
 
 type Open =
   | { type: 'log'; prefill?: LogPrefill; n: number }
-  | { type: 'edit'; id: string }
-  | { type: 'rate'; id: string }
-  | { type: 'bean'; id: string }
+  | { type: 'edit'; id: string; rate?: boolean }
+  | { type: 'bean'; id: string; back?: boolean }
   | { type: 'beanForm'; id?: string; n: number }
   | { type: 'roaster'; id?: string; n: number }
   | { type: 'about' };
@@ -55,7 +54,8 @@ export function SheetProvider({ children }: { children: ReactNode }) {
     return {
       log: (prefill) => show({ type: 'log', prefill, n: ++n }),
       editBrew: (id) => show({ type: 'edit', id }),
-      rate: (id) => show({ type: 'rate', id }),
+      // Rating a brew: its usual sheet, opened at the rating (the details are a scroll up).
+      rate: (id) => show({ type: 'edit', id, rate: true }),
       bean: (id) => show({ type: 'bean', id }),
       beanForm: (id) => show({ type: 'beanForm', id, n: ++n }),
       roaster: (id) => show({ type: 'roaster', id, n: ++n }),
@@ -63,6 +63,8 @@ export function SheetProvider({ children }: { children: ReactNode }) {
       close: () => {
         let prev = back.current.pop() ?? null;
         while (prev && !exists(prev)) prev = back.current.pop() ?? null;
+        // Back to a bag's page: as it was left (its tab, scroll, picked brew).
+        if (prev?.type === 'bean') prev = { ...prev, back: true };
         current.current = prev;
         setOpen(prev);
       },
@@ -76,11 +78,11 @@ export function SheetProvider({ children }: { children: ReactNode }) {
     if (open.type === 'log')
       sheet = <BrewSheet key={'log' + open.n} m={m} s={s} prefill={open.prefill} />;
     if (open.type === 'edit')
-      sheet = <BrewSheet key={'edit' + open.id} m={m} s={s} editId={open.id} />;
-    if (open.type === 'rate')
-      sheet = <RateSheet key={'rate' + open.id} m={m} s={s} brewId={open.id} />;
+      sheet = (
+        <BrewSheet key={'edit' + open.id} m={m} s={s} editId={open.id} atRating={open.rate} />
+      );
     if (open.type === 'bean')
-      sheet = <BeanSheet key={'bean' + open.id} m={m} s={s} beanId={open.id} />;
+      sheet = <BeanSheet key={'bean' + open.id} m={m} s={s} beanId={open.id} back={open.back} />;
     if (open.type === 'beanForm')
       sheet = <BeanForm key={'bf' + open.n} m={m} s={s} beanId={open.id} />;
     if (open.type === 'roaster')

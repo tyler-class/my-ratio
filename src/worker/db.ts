@@ -148,6 +148,7 @@ export function toBrew(r: Row): Brew {
     tasting_notes: s(r.tasting_notes),
     next_time: s(r.next_time),
     rating_skipped: !!r.rating_skipped,
+    ratio_lock: r.ratio_lock == null ? true : !!r.ratio_lock,
   };
 }
 

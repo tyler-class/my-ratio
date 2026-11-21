@@ -44,6 +44,11 @@ describe('records', () => {
     expect(skipped.rating_skipped).toBe(true);
     expect(b2.rating_skipped).toBe(false);
 
+    // The dose/water lock is kept on the brew: locked unless it was left free.
+    expect(b2.ratio_lock).toBe(true);
+    const free = (await api.patch<Brew>(`/brews/${b1.id}`, { ratio_lock: false })).data;
+    expect(free.ratio_lock).toBe(false);
+
     // "received" was retired; old clients and backups land on resting.
     const old = await api.post<Bean>('/beans', { name: 'Old client', status: 'received' });
     expect(old.data.status).toBe('resting');

@@ -5,7 +5,7 @@ import { COUNTRIES, PROCESSES, VARIETIES, mergeOptions } from '@shared/lookups';
 import type { BeanView, Model } from '@shared/logic/model';
 import type { Settings } from '@shared/types';
 import { currencyDigits, roundMoney } from '@shared/currency';
-import { currencySymbol, numStr, parseNum } from '../lib/format';
+import { altitudeNum, currencySymbol, numStr, parseNum } from '../lib/format';
 import { Field, MultiSelect, NotesField, Select } from '../components/ui';
 import { DatePicker } from '../components/DateTimePicker';
 
@@ -43,7 +43,7 @@ export function draftFrom(b?: BeanView): Draft {
     origins: b?.origins ?? [],
     region: b?.region ?? '',
     // Just the number: the label says MASL (older entries carried it in the value).
-    altitude: (b?.altitude ?? '').replace(/\s*m\.?\s*a\.?\s*s\.?\s*l\.?\s*$/i, ''),
+    altitude: altitudeNum(b?.altitude),
     varieties: b?.varieties ?? [],
     process: b?.process ?? '',
     process_notes: b?.process_notes ?? '',

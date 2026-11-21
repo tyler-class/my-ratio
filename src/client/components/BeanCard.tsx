@@ -1,6 +1,7 @@
 import { BUY_AGAIN, statusOf } from '@shared/lookups';
-import { agoLabel, daysBetween, inDays, parseDay } from '@shared/logic/dates';
-import { fmtInt, r1 } from '@shared/logic/units';
+import { agoLabel, dayKey, daysBetween, inDays, parseDay } from '@shared/logic/dates';
+import { restInfo } from '@shared/logic/timeline';
+import { fmtInt, plural, r1 } from '@shared/logic/units';
 import type { BeanView, Model } from '@shared/logic/model';
 import { useSheets } from '../sheets/context';
 import { Thumb } from './Photos';
@@ -27,6 +28,19 @@ export function stockLine(b: BeanView, m: Model, now = new Date()): string {
     default:
       return `${fmtInt(b.brews.length)} brews${b.avg != null ? ` · avg ${r1(b.avg)}` : ''}`;
   }
+}
+
+/**
+ * For a bag in the freezer: the rest still to come once it's out ("Then rest 6 days"), so you
+ * know how far ahead to take it out. Freezer days don't count as rest. None without a
+ * recommended rest.
+ */
+export function thenRest(b: BeanView, now = new Date()): string | null {
+  if (b.status !== 'freezing') return null;
+  const first = b.brews.length ? dayKey(b.brews.at(-1)!.date) : null;
+  const r = restInfo(b, b.events, dayKey(now), first);
+  if (!r || r.mode !== 'countdown') return null;
+  return r.left > 0 ? `Then rest ${plural(r.left, 'day')}` : 'Rested enough: ready once thawed';
 }
 
 export const flags = (b: { origins: string[] }, m: Pick<Model, 'mark'>) =>
@@ -72,6 +86,7 @@ export function BeanCard({ b, m, showStatus }: { b: BeanView; m: Model; showStat
       )}
       <div className="meta">
         <span>{stockLine(b, m, now)}</span>
+        {thenRest(b, now) && <span className="then-rest">{thenRest(b, now)}</span>}
         {age != null && b.status !== 'finished' && b.status !== 'freezing' && (
           <span>roasted {agoLabel(age)}</span>
         )}

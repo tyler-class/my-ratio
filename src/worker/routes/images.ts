@@ -209,6 +209,37 @@ function importRoute(owner: OwnerType) {
     return c.json(img, 201);
   });
 }
+const orderInput = z.object({ ids: z.array(z.string().min(1)).max(200) });
+
+/** Puts a record's photos in the given order; the first is the one shown on its card. */
+function orderRoute(owner: OwnerType) {
+  return images.patch(`/${TABLE[owner]}/:id/images/order`, async (c) => {
+    const { ids } = await body(c, orderInput);
+    const ownerId = c.req.param('id');
+    const have = await all<{ id: string }>(
+      c.env.DB,
+      'SELECT id FROM images WHERE owner_type = ? AND owner_id = ? ORDER BY sort_order, created_at',
+      owner,
+      ownerId,
+    );
+    const known = new Set(have.map((r) => r.id));
+    // Listed ones first, in that order; any not listed keep their order after them.
+    const order = [
+      ...ids.filter((id) => known.has(id)),
+      ...have.map((r) => r.id).filter((id) => !ids.includes(id)),
+    ];
+    if (order.length)
+      await c.env.DB.batch(
+        order.map((id, i) =>
+          c.env.DB.prepare('UPDATE images SET sort_order = ? WHERE id = ?').bind(i, id),
+        ),
+      );
+    return c.json({ ids: order });
+  });
+}
+orderRoute('bean');
+orderRoute('roaster');
+
 importRoute('bean');
 importRoute('roaster');
 

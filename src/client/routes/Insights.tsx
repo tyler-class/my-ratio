@@ -30,6 +30,13 @@ const DIMS = [
 /** Rated brews a group needs before its average is ranked. */
 const TASTE_MIN = 3;
 
+/** A round step for an axis: 1, 2 or 5 times a power of ten. */
+function niceStep(raw: number): number {
+  const p = 10 ** Math.floor(Math.log10(raw));
+  const f = raw / p;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p;
+}
+
 export function Insights() {
   const data = useModel();
   const sheets = useSheets();
@@ -148,6 +155,21 @@ export function Insights() {
   }
   const spendRows = [...rs.values()].sort((a, b) => b.spend - a.spend);
   const top = m.beans.filter((b) => b.rated.length >= 2).sort((a, b) => b.avg! - a.avg!);
+  // Best value: each priced, rated bag's price per 100 g against its average rating, to see
+  // whether paying more buys a better cup. Value = rating points per unit of price per 100 g.
+  const valued = m.beans
+    .filter((b) => b.perG != null && b.perG > 0 && b.avg != null)
+    .map((b) => ({ b, per100: b.perG! * 100, avg: b.avg!, value: b.avg! / (b.perG! * 100) }))
+    .sort((a, b) => b.value - a.value);
+  const vMax = Math.max(0, ...valued.map((v) => v.per100));
+  const vMin = Math.min(Infinity, ...valued.map((v) => v.per100));
+  const vStep = niceStep((vMax - vMin || vMax || 1) / 4);
+  const valuePts = valued.map((v) => ({
+    x: v.per100,
+    y: v.avg,
+    tone: 'a',
+    title: `${v.b.name} · ${money(v.per100, cur)} / 100 g · rated ${fmtN(r1(v.avg))}`,
+  }));
   const reorder = m.beans
     .filter(
       (b) => b.status === 'finished' && (b.buy_again === 'definitely' || b.buy_again === 'yes'),
@@ -425,6 +447,49 @@ export function Insights() {
           ) : (
             <Empty icon="coin" title="No prices logged">
               Add what you paid to a bag to see spend here.
+            </Empty>
+          )}
+        </>
+      ),
+    },
+    {
+      id: 'value',
+      icon: 'tag',
+      title: 'Best value',
+      sub: 'Price per 100 g against average rating, by bag',
+      size: 'half',
+      body: (
+        <>
+          {valued.length >= 2 ? (
+            <>
+              <Scatter
+                pts={valuePts}
+                xMin={Math.max(0, Math.floor(vMin / vStep) * vStep - vStep)}
+                xMax={Math.ceil(vMax / vStep) * vStep + vStep}
+                yMin={0}
+                yMax={10}
+                xStep={vStep}
+                yStep={2}
+                xFmt={(v) => (vStep < 1 ? money(v, cur) : money0(v, cur))}
+              />
+              <div className="hint">
+                Up and to the left is more rating for the money. Best value, rating per price:
+              </div>
+              <Rank
+                rows={valued.slice(0, 3).map((v) => ({
+                  key: v.b.id,
+                  label: v.b.name,
+                  onClick: () => sheets.bean(v.b.id),
+                  value: v.value,
+                  vl: fmtN(r1(v.avg)),
+                  sub: `${money(v.per100, cur)} / 100 g`,
+                }))}
+                max={valued[0]!.value}
+              />
+            </>
+          ) : (
+            <Empty icon="tag" title="Not enough priced, rated bags">
+              Add prices and bag sizes, and rate brews of two or more bags, to see this.
             </Empty>
           )}
         </>

@@ -176,6 +176,78 @@ export function grindTable(
     .sort((a, b) => b.avg - a.avg || b.n - a.n);
 }
 
+export interface Combo {
+  /** The method these brews used most: not part of the recipe, just how it was brewed. */
+  method: string | null;
+  grinder: string | null;
+  /** The grind as written ("4.2"). */
+  grind: string;
+  /** The ratio to the nearest 0.5 (16.5 for 1:16.5). */
+  ratio: number;
+  n: number;
+  avg: number;
+  /** The brews at this grind and ratio, newest first. */
+  ids: string[];
+  /** The best-rated of them (newest on a tie): the recipe to brew again. */
+  bestId: string;
+  /** The water temperature (°C) used most often across them, or null if none was logged. */
+  temp_c: number | null;
+}
+
+/**
+ * The recipe that rated best on average: grinder, grind, ratio and water temperature together
+ * (with the method it was mostly brewed by),
+ * every one sharing the top average (to one decimal) listed, so a tie shows them all. Recipes
+ * tried twice or more count first; with none repeated yet, single brews stand in.
+ */
+export function bestCombos(
+  bean: BeanView,
+  scales: Record<string, GrindScale> = {},
+  /** Only brews on this grinder (grind settings don't compare across grinders). */
+  onGrinder?: string | null,
+): Combo[] {
+  const by = new Map<
+    string,
+    { c: Omit<Combo, 'n' | 'avg' | 'bestId' | 'temp_c' | 'method'>; brews: BrewView[] }
+  >();
+  for (const x of bean.rated) {
+    const grind = grindLabel(x, scales);
+    if (grind == null || !x.ratio) continue;
+    if (onGrinder !== undefined && x.grinder !== onGrinder) continue;
+    const ratio = Math.round(x.ratio * 2) / 2;
+    // Temperatures within half a degree (C) count as the same: 201°F and 94°C both land on 94.
+    const temp = x.water_temp_c == null ? 'none' : Math.round(x.water_temp_c * 2) / 2;
+    const k = `${x.grinder ?? ''}|${grind}|${ratio}|${temp}`;
+    const e = by.get(k) ?? { c: { grinder: x.grinder, grind, ratio, ids: [] }, brews: [] };
+    e.c.ids.push(x.id);
+    e.brews.push(x);
+    by.set(k, e);
+  }
+  const all = [...by.values()].map(({ c, brews }) => ({
+    ...c,
+    n: brews.length,
+    avg: mean(brews.map((x) => x.rating!))!,
+    bestId: brews.reduce((a, x) => (x.rating! > a.rating! ? x : a)).id,
+    temp_c: mostCommon(brews.map((x) => x.water_temp_c)),
+    method: mostCommon(brews.map((x) => x.method)),
+  }));
+  const repeated = all.filter((c) => c.n >= 2);
+  const pool = repeated.length ? repeated : all;
+  const top = Math.max(...pool.map((c) => Math.round(c.avg * 10)));
+  return pool
+    .filter((c) => Math.round(c.avg * 10) === top)
+    .sort((a, b) => b.n - a.n || a.ratio - b.ratio);
+}
+
+/** The value seen most often (the first seen on a tie), ignoring blanks. */
+function mostCommon<T extends string | number>(vs: (T | null)[]): T | null {
+  const n = new Map<T, number>();
+  for (const v of vs) if (v != null) n.set(v, (n.get(v) ?? 0) + 1);
+  let best: T | null = null;
+  for (const [v, c] of n) if (best == null || c > n.get(best)!) best = v;
+  return best;
+}
+
 /** Consecutive days with a brew, ending today (or yesterday if nothing yet today). */
 export function streak(brews: { key: string }[], now = new Date()): number {
   const keys = new Set(brews.map((b) => b.key));

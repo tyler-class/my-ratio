@@ -145,6 +145,7 @@ export const brewInput = z.object({
   tasting_notes: text(),
   next_time: text(500),
   rating_skipped: z.boolean().optional(),
+  ratio_lock: z.boolean().optional(),
 });
 export const brewPatch = brewInput.partial();
 

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildModel, grindTable, recentGrinds, streak } from '../../src/shared/logic/model';
+import {
+  bestCombos,
+  buildModel,
+  grindTable,
+  recentGrinds,
+  streak,
+} from '../../src/shared/logic/model';
 import { dayIn, parseLocal } from '../../src/shared/logic/tz';
 import { ratioOf, tempIn, tempOut } from '../../src/shared/logic/units';
 import { mergeOptions } from '../../src/shared/lookups';
@@ -43,6 +49,7 @@ function brew(p: Partial<Brew>): Brew {
   n++;
   return {
     rating_skipped: false,
+    ratio_lock: true,
     id: `x${n}`,
     num: n,
     bean_id: 'b1',
@@ -186,5 +193,59 @@ describe('units and time zones', () => {
       'Peru',
       'Brazil',
     ]);
+  });
+});
+
+describe('bestCombos', () => {
+  const at = (grind: number, water: number, rating: number, d: number) =>
+    brew({ bean_id: 'c1', grind, water_ml: water, rating, brewed_at: ago(d) });
+  it('picks the grind and ratio together that rated best, listing ties', () => {
+    const brews = [
+      at(6, 320, 8, 1), // 6 · 1:16
+      at(6, 320, 9, 2), // 6 · 1:16 → avg 8.5 over 2
+      at(5, 340, 9, 3), // 5 · 1:17
+      at(5, 340, 8, 4), // 5 · 1:17 → avg 8.5 over 2 (a tie)
+      at(7, 300, 10, 5), // tried once: doesn't beat repeated ones
+      at(6, 340, 6, 6),
+      at(6, 340, 6, 7),
+    ];
+    const m = buildModel(state([bean({ id: 'c1' })], brews), NOW);
+    const best = bestCombos(m.beanMap.get('c1')!);
+    expect(best.map((c) => [c.grind, c.ratio, c.avg, c.n])).toEqual([
+      ['6', 16, 8.5, 2],
+      ['5', 17, 8.5, 2],
+    ]);
+    expect(best[0]!.bestId).toBe(brews[1]!.id);
+  });
+});
+
+describe('bestCombos with temperature', () => {
+  it('treats the same grind and ratio at another temperature as another recipe', () => {
+    const at = (temp: number, rating: number, d: number) =>
+      brew({
+        bean_id: 't1',
+        grind: 6,
+        water_ml: 320,
+        water_temp_c: temp,
+        rating,
+        brewed_at: ago(d),
+      });
+    const brews = [at(94, 9, 1), at(94, 8, 2), at(90, 6, 3), at(90, 6, 4)];
+    const m = buildModel(state([bean({ id: 't1' })], brews), NOW);
+    const best = bestCombos(m.beanMap.get('t1')!);
+    expect(best).toHaveLength(1);
+    expect(best[0]).toMatchObject({ grind: '6', ratio: 16, temp_c: 94, avg: 8.5, n: 2 });
+  });
+});
+
+describe('bestCombos with method', () => {
+  it('groups on the recipe, not the method, and reports the method mostly used', () => {
+    const at = (method: string, rating: number, d: number) =>
+      brew({ bean_id: 'm1', method, grind: 6, water_ml: 320, rating, brewed_at: ago(d) });
+    const brews = [at('V60', 9, 1), at('V60', 8, 2), at('Kalita', 8, 3)];
+    const m = buildModel(state([bean({ id: 'm1' })], brews), NOW);
+    const best = bestCombos(m.beanMap.get('m1')!);
+    expect(best).toHaveLength(1);
+    expect(best[0]).toMatchObject({ method: 'V60', n: 3 });
   });
 });

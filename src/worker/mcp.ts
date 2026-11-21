@@ -19,6 +19,7 @@ import {
 } from '@shared/lookups';
 import {
   buildModel,
+  bestCombos,
   grindTable,
   mean,
   streak,
@@ -259,6 +260,25 @@ function beanDetail(b: BeanView, c: Ctx, brewLimit: number) {
     dial_in: grindTable(b, c.s.grind_scales)
       .slice(0, 6)
       .map((g) => ({ grind: g.grind, avg_rating: r1(g.avg), brews: g.n })),
+    // The recipe the app shows as Best Combination on the bag's Brews tab: grinder, grind,
+    // ratio and water temperature together that rated best on average (ties all listed).
+    best_combination: bestCombos(b, c.s.grind_scales).map((x) => {
+      const top = c.m.brewMap.get(x.bestId);
+      return {
+        method: x.method,
+        grinder: x.grinder,
+        grind: x.grind,
+        ratio: `1:${x.ratio}`,
+        water_temp: x.temp_c != null ? Math.round(tempOut(x.temp_c, c.s.temp_unit)!) : null,
+        temp_unit: c.s.temp_unit,
+        avg_rating: r1(x.avg),
+        brews: x.n,
+        // The best-rated brew of it, whose dose and water to repeat.
+        dose_g: top?.dose_g ?? null,
+        water_ml: top?.water_ml ?? null,
+        brew: top ? `#${top.num}` : null,
+      };
+    }),
     best_brew: b.best ? brewOut(b.best, c) : null,
     last_brew: b.last ? brewOut(b.last, c) : null,
     recent_brews: b.brews.slice(0, brewLimit).map((x) => brewOut(x, c)),
@@ -517,7 +537,7 @@ function buildServer(call: Call) {
     {
       title: 'Get a bean',
       description:
-        'Everything about one bag: origin and roast details, grams used and left, cost per brew, how each grind setting has rated (dial-in), its best and latest brew including “next time” notes, and recent brews.',
+        'Everything about one bag: origin and roast details, grams used and left, cost per brew, how each grind setting has rated (dial-in), its best combination (the grinder, grind, ratio and temperature that rated best together, as the app shows it), its best and latest brew including “next time” notes, and recent brews.',
       inputSchema: z.object({
         bean: z.string().describe('Bean name (partial is fine), "name roaster", or id'),
         brews: z
@@ -1121,7 +1141,7 @@ function buildServer(call: Call) {
     ({ bean }) =>
       ask(`Help me dial in "${bean}" in my Ratio coffee log.
 
-1. get_bean it (with plenty of recent brews) and look at the dial_in table, best_brew and last_brew. Use list_brews for that bean if you need more history.
+1. get_bean it (with plenty of recent brews) and look at best_combination (the recipe the app shows as best, from the average of repeated brews), the dial_in table, best_brew and last_brew. Use list_brews for that bean if you need more history.
 2. Compare grind, dose, ratio and temperature against rating and the extraction and strength labels. Note what moved the rating and what my "next time" notes said.
 3. Suggest one next recipe (method, grinder, grind, dose, water, temperature) with a one-line reason. Change one or two things at a time, not everything.
 4. Ask if I want it logged when I brew it. Only call log_brew once I say I brewed it.`),

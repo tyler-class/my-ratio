@@ -284,13 +284,17 @@ describe('MCP', () => {
     });
     expect(brews.data).toMatchObject({ count: 2, avg_rating: 7.8 });
 
-    const detail = await tool<{ used_g: number; remaining_g: number; dial_in: unknown[] }>(
-      t,
-      'get_bean',
-      { bean: 'Sey Kenya' },
-    );
+    const detail = await tool<{
+      used_g: number;
+      remaining_g: number;
+      dial_in: unknown[];
+      best_combination: { grind: string; ratio: string; dose_g: number | null }[];
+    }>(t, 'get_bean', { bean: 'Sey Kenya' });
     // Only the first brew had a dose (the second gave none, and nothing is filled in).
     expect(detail.data).toMatchObject({ used_g: 20, remaining_g: 230 });
+    // The app's Best Combination, with the dose to repeat it at.
+    expect(Array.isArray(detail.data.best_combination)).toBe(true);
+    for (const c of detail.data.best_combination) expect(c.ratio).toMatch(/^1:/);
 
     const over = await tool<{
       drinking: { name: string }[];

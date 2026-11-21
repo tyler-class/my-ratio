@@ -172,7 +172,7 @@ export function RoasterSheet({ m, s, roasterId }: { m: Model; s: Settings; roast
         <Field label="Name">
           <input className="in" value={f.name} onChange={(e) => set({ name: e.target.value })} />
         </Field>
-        <div className="two fg">
+        <div className="two fg stack-phone">
           <div>
             <label className="lbl">Location</label>
             <input
@@ -182,20 +182,27 @@ export function RoasterSheet({ m, s, roasterId }: { m: Model; s: Settings; roast
             />
           </div>
           <div>
-            <label className="lbl">Website</label>
+            <label className="lbl lbl-link">
+              Website
+              {f.website.trim() && (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="lbl-open"
+                  aria-label="Open website in a new tab"
+                  title="Open in a new tab"
+                >
+                  <Icon name="external" size={14} />
+                </a>
+              )}
+            </label>
             <input
               className="in"
               value={f.website}
               inputMode="url"
               onChange={(e) => set({ website: e.target.value })}
             />
-            {r && f.website && (
-              <p className="sub" style={{ margin: '8px 0 0' }}>
-                <a href={href} target="_blank" rel="noreferrer">
-                  Open website
-                </a>
-              </p>
-            )}
           </div>
         </div>
         <Field label="Notes">

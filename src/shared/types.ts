@@ -71,6 +71,8 @@ export interface Brew {
   next_time: string | null;
   /** Dismissed from "Waiting for a rating" without rating it. */
   rating_skipped: boolean;
+  /** Dose and water move together at the ratio (the lock between them, as last left). */
+  ratio_lock: boolean;
 }
 
 export type TempUnit = 'F' | 'C';

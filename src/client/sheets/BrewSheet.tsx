@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { EXTRACTION, STATUSES, STRENGTH } from '@shared/lookups';
 import {
   describeScale,
@@ -117,70 +117,6 @@ export const ratePayload = (v: RateValues) => ({
   next_time: v.next_time,
 });
 
-export function RateSheet({ m, s, brewId }: { m: Model; s: Settings; brewId: string }) {
-  const b = m.brewMap.get(brewId);
-  const sheets = useSheets();
-  const actions = useActions();
-  const toast = useToast();
-  const [v, setV] = useState(() => rateFrom(b));
-  const [busy, setBusy] = useState(false);
-  if (!b) return null;
-  const save = async () => {
-    setBusy(true);
-    const ok = await actions.brews.update(b.id, ratePayload(v));
-    setBusy(false);
-    if (ok) {
-      sheets.close();
-      toast({ text: `Rated Brew #${b.num}` });
-    }
-  };
-  const skip = async () => {
-    setBusy(true);
-    const ok = await actions.brews.update(b.id, { rating_skipped: true });
-    setBusy(false);
-    if (ok) {
-      sheets.close();
-      toast({
-        text: `Skipped rating for Brew #${b.num}`,
-        action: {
-          label: 'Undo',
-          run: () => void actions.brews.update(b.id, { rating_skipped: false }),
-        },
-      });
-    }
-  };
-  return (
-    <Sheet
-      title="Rate this brew"
-      sub={`${b.beanName} · #${b.num} · ${dayLabel(b.date, new Date()).toLowerCase()}`}
-      onClose={sheets.close}
-      footer={
-        <>
-          {b.rating == null && !b.rating_skipped && (
-            <button type="button" className="btn ghost left" disabled={busy} onClick={skip}>
-              Skip
-            </button>
-          )}
-          <button type="button" className="btn ghost" onClick={sheets.close}>
-            Cancel
-          </button>
-          <button type="button" className="btn primary" disabled={busy} onClick={save}>
-            {busy ? 'Saving…' : 'Save'}
-          </button>
-        </>
-      }
-    >
-      <div className="callout" style={{ marginBottom: 18 }}>
-        <b>Recipe</b>
-        {fmtN(b.dose_g)} g → {b.water_ml != null ? fmtInt(b.water_ml) : '–'} mL · {b.grinder ?? ''}{' '}
-        {grindLabel(b, s.grind_scales) ?? '–'} · {fmtN(tempOut(b.water_temp_c, s.temp_unit))}°
-        {b.recipe_notes && <div className="sub">{b.recipe_notes}</div>}
-      </div>
-      <RateFields v={v} set={(p) => setV((x) => ({ ...x, ...p }))} />
-    </Sheet>
-  );
-}
-
 interface Recipe {
   method: string;
   grinder: string;
@@ -234,11 +170,14 @@ export function BrewSheet({
   s,
   prefill,
   editId,
+  atRating,
 }: {
   m: Model;
   s: Settings;
   prefill?: LogPrefill;
   editId?: string;
+  /** Open scrolled to the rating (from "Waiting for a rating"); the details are above. */
+  atRating?: boolean;
 }) {
   const sheets = useSheets();
   const actions = useActions();
@@ -251,7 +190,7 @@ export function BrewSheet({
         beanId: editing.bean_id ?? '',
         ...recipeFrom(editing, s),
         when: toLocalInput(editing.date),
-        lock: false,
+        lock: editing.ratio_lock,
       };
     }
     // Brew again (Recipe book): that recipe, as it was.
@@ -272,6 +211,10 @@ export function BrewSheet({
   const [rv, setRv] = useState<RateValues>(() => rateFrom(editing));
   const [busy, setBusy] = useState(false);
   const set = (p: Partial<typeof f>) => setF((x) => ({ ...x, ...p }));
+  const rateRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (atRating) rateRef.current?.scrollIntoView({ block: 'start' });
+  }, [atRating]);
 
   const bean = f.beanId ? (m.beanMap.get(f.beanId) ?? null) : null;
   // What a new brew started from (not for an edit, or Brew again's chosen recipe). The other
@@ -357,6 +300,7 @@ export function BrewSheet({
       water_ml: waterN,
       water_temp_c: tempIn(parseNum(f.temp), s.temp_unit),
       recipe_notes: f.notes,
+      ratio_lock: f.lock,
       ...(brewedAt(f.when) ? { brewed_at: brewedAt(f.when)! } : {}),
       ...(editing || rated ? ratePayload(rv) : {}),
     };
@@ -587,7 +531,7 @@ export function BrewSheet({
             }
             onClick={() => set({ lock: !f.lock })}
           >
-            <Icon name={f.lock ? 'lock' : 'unlock'} size={18} />
+            <Icon name={f.lock ? 'lock' : 'unlock'} size={15} />
           </button>
           <div>
             <label className="lbl" htmlFor="brew-water">
@@ -631,9 +575,11 @@ export function BrewSheet({
           <NotesField value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
         </Field>
       </FormSection>
-      <FormSection icon="star" title="Rating & tasting">
-        <RateFields v={rv} set={(p) => setRv((x) => ({ ...x, ...p }))} />
-      </FormSection>
+      <div ref={rateRef} className="rate-anchor">
+        <FormSection icon="star" title="Rating & tasting">
+          <RateFields v={rv} set={(p) => setRv((x) => ({ ...x, ...p }))} />
+        </FormSection>
+      </div>
     </Sheet>
   );
 }
