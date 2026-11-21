@@ -1,7 +1,7 @@
 import { grindLabel } from '@shared/grind';
 import { timeLabel } from '@shared/logic/dates';
 import type { BrewView } from '@shared/logic/model';
-import { fmtN, tempOut } from '@shared/logic/units';
+import { fmtInt, fmtN, tempOut } from '@shared/logic/units';
 import type { Settings } from '@shared/types';
 import { useSheets } from '../sheets/context';
 import { RB } from './ui';
@@ -10,7 +10,7 @@ export function recipeLine(b: BrewView, s: Settings, withMethod = true): string 
   const bits: string[] = [];
   if (withMethod && b.method) bits.push(b.method);
   if (b.dose_g != null && b.water_ml != null)
-    bits.push(`${fmtN(b.dose_g)} g → ${Math.round(b.water_ml)} mL`);
+    bits.push(`${fmtN(b.dose_g)} g → ${fmtInt(b.water_ml)} mL`);
   if (b.ratio) bits.push(`1:${b.ratio.toFixed(1)}`);
   const g = grindLabel(b, s.grind_scales);
   if (g != null) bits.push(`${b.grinder ? b.grinder.replace(/^Fellow /, '') + ' ' : ''}${g}`);

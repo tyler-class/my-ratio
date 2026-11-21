@@ -24,6 +24,25 @@ describe('a bag’s timeline', () => {
     ]);
   });
 
+  it('ignores a first brew dated before the roast (the countdown and ready date agree)', () => {
+    // Roasted Nov 3, 23 days' rest, a brew wrongly dated Oct 6: 17 rested by Nov 20, ready Nov 26.
+    const r = restInfo(
+      { roasted_on: '2026-11-03', rest_days: 23 },
+      [ev('resting', '2026-11-11')],
+      '2026-11-20',
+      '2026-10-06',
+    )!;
+    expect(r).toMatchObject({ rested: 17, left: 6, ready: false, readyDay: '2026-11-26' });
+    // A real first brew still stops the clock.
+    const s = restInfo(
+      { roasted_on: '2026-11-03', rest_days: 23 },
+      [],
+      '2026-11-20',
+      '2026-11-10',
+    )!;
+    expect(s.rested).toBe(7);
+  });
+
   it('counts the rest from the roast, less the freezer', () => {
     // Roasted Oct 20: 39 days to Nov 28, 20 of them frozen → 19 rested.
     const r = restInfo({ roasted_on: '2026-10-20', rest_days: 21 }, evs, '2026-11-28')!;

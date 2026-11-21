@@ -1,17 +1,19 @@
-import { BUY_AGAIN } from '@shared/lookups';
+import { BUY_AGAIN, statusOf } from '@shared/lookups';
 import { agoLabel, daysBetween, inDays, parseDay } from '@shared/logic/dates';
-import { r1 } from '@shared/logic/units';
+import { fmtInt, r1 } from '@shared/logic/units';
 import type { BeanView, Model } from '@shared/logic/model';
 import { useSheets } from '../sheets/context';
 import { Thumb } from './Photos';
 import { RB, TagRow } from './ui';
+import { Icon } from './Icon';
+import { STATUS_ICON } from '../lib/statusIcons';
 
 export function stockLine(b: BeanView, m: Model, now = new Date()): string {
   const left = b.remaining != null ? Math.floor(b.remaining / m.dose7d) : null;
   switch (b.status) {
     case 'drinking':
       return b.remaining != null
-        ? `${Math.round(b.remaining)} g left${left != null ? ` · ~${left} ${left === 1 ? 'brew' : 'brews'}` : ''}`
+        ? `${fmtInt(b.remaining)} g left${left != null ? ` · ~${left} ${left === 1 ? 'brew' : 'brews'}` : ''}`
         : 'Open';
     case 'resting': {
       if (!b.rest_until) return 'Resting';
@@ -19,18 +21,22 @@ export function stockLine(b: BeanView, m: Model, now = new Date()): string {
       return x > 0 ? `Ready in ${inDays(x)}` : 'Ready to open';
     }
     case 'freezing':
-      return `In the freezer · ${b.bag_g ?? '?'} g`;
+      return `In the freezer · ${b.bag_g != null ? fmtInt(b.bag_g) : '?'} g`;
     case 'ordered':
       return 'On the way';
     default:
-      return `${b.brews.length} brews${b.avg != null ? ` · avg ${r1(b.avg)}` : ''}`;
+      return `${fmtInt(b.brews.length)} brews${b.avg != null ? ` · avg ${r1(b.avg)}` : ''}`;
   }
 }
 
 export const flags = (b: { origins: string[] }, m: Pick<Model, 'mark'>) =>
   b.origins.map(m.mark).join('');
 
-export function BeanCard({ b, m }: { b: BeanView; m: Model }) {
+/**
+ * A bag on the Beans page. `showStatus` (the All filter, where bags of every status mix) adds its
+ * status as a pill, in that status's own icon and colour.
+ */
+export function BeanCard({ b, m, showStatus }: { b: BeanView; m: Model; showStatus?: boolean }) {
   const sheets = useSheets();
   const now = new Date();
   const age = b.roasted_on ? daysBetween(parseDay(b.roasted_on), now) : null;
@@ -72,6 +78,12 @@ export function BeanCard({ b, m }: { b: BeanView; m: Model }) {
       </div>
       {b.tags.length > 0 && <TagRow tags={b.tags} />}
       <div className="flexrow">
+        {showStatus && (
+          <span className={`tag st-pill s-${b.status}`}>
+            <Icon name={STATUS_ICON[b.status]} size={13} />
+            {statusOf(b.status)?.label ?? b.status}
+          </span>
+        )}
         {b.process && <span className="tag">{b.process}</span>}
         {b.status === 'finished' && by && (
           <span className={'tag ' + by.tone}>Buy again: {by.label}</span>

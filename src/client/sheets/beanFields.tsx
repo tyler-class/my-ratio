@@ -131,12 +131,7 @@ export function CoffeeFields({ d, set, o }: FieldProps & { o: Options }) {
   return (
     <>
       <Field label="Name">
-        <input
-          className="in"
-          value={d.name}
-          placeholder="Finca Chilamate"
-          onChange={(e) => set({ name: e.target.value })}
-        />
+        <input className="in" value={d.name} onChange={(e) => set({ name: e.target.value })} />
       </Field>
       <Field label="Roaster">
         <Select
@@ -152,7 +147,6 @@ export function CoffeeFields({ d, set, o }: FieldProps & { o: Options }) {
             className="in"
             style={{ marginTop: 8 }}
             value={d.newRoaster}
-            placeholder="Roaster name"
             onChange={(e) => set({ newRoaster: e.target.value })}
           />
         )}
@@ -161,7 +155,6 @@ export function CoffeeFields({ d, set, o }: FieldProps & { o: Options }) {
         <input
           className="in"
           value={d.tasting}
-          placeholder="Cassis, cantaloupe, jammy"
           onChange={(e) => set({ tasting: e.target.value })}
         />
       </Field>
@@ -185,7 +178,6 @@ export function BagFields({ d, set, s }: FieldProps & { s: Settings }) {
             className="in"
             inputMode="decimal"
             value={d.bag}
-            placeholder="250"
             onChange={(e) => set({ bag: e.target.value })}
           />
         </div>
@@ -195,7 +187,6 @@ export function BagFields({ d, set, s }: FieldProps & { s: Settings }) {
             className="in"
             inputMode={currencyDigits(s.currency) ? 'decimal' : 'numeric'}
             value={d.cost}
-            placeholder={currencyDigits(s.currency) ? '22.00' : '3000'}
             onChange={(e) => set({ cost: e.target.value })}
           />
         </div>
@@ -216,7 +207,6 @@ export function BagFields({ d, set, s }: FieldProps & { s: Settings }) {
             className="in"
             inputMode="numeric"
             value={d.rest_days}
-            placeholder="Days"
             onChange={(e) => set({ rest_days: e.target.value.replace(/[^\d]/g, '') })}
           />
         </div>
@@ -242,7 +232,6 @@ export function OriginPicker({
   return (
     <MultiSelect
       label="Origin"
-      placeholder="Choose origins"
       value={value}
       options={o.countries}
       decorate={(c) => `${o.mark(c)} ${c}`.trim()}
@@ -270,7 +259,6 @@ export function VarietyPicker({
   return (
     <MultiSelect
       label="Variety"
-      placeholder="Choose varieties"
       value={value}
       options={o.varieties}
       onChange={onChange}
@@ -298,7 +286,6 @@ export function ProcessPicker({
     <MultiSelect
       single
       label="Process"
-      placeholder="Choose a process"
       value={value ? [value] : []}
       options={o.processes}
       onChange={(v) => onChange(v[0] ?? '')}
@@ -329,7 +316,6 @@ export function OriginFields({ d, set, o }: FieldProps & { o: Options }) {
             className="in"
             inputMode="numeric"
             value={d.altitude}
-            placeholder="1900"
             onChange={(e) => set({ altitude: e.target.value })}
           />
         </div>
@@ -396,7 +382,6 @@ export function TagPicker({
         className="in"
         style={{ marginTop: 8, maxWidth: 260 }}
         value={draft}
-        placeholder="Add another"
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && draft.trim()) {

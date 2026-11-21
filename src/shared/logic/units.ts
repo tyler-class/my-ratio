@@ -22,7 +22,21 @@ export function ratioOf(dose: number | null, water: number | null): number | nul
   return dose && water && dose > 0 && water > 0 ? water / dose : null;
 }
 
+const INT = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
+const ONE = new Intl.NumberFormat(undefined, {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+
+/** A number as shown: whole, or one decimal, with thousands grouped ("1,733", "16.5"). */
 export function fmtN(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return '–';
-  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+  return Number.isInteger(n) ? INT.format(n) : ONE.format(n);
 }
+
+/** A count or amount rounded to a whole number, thousands grouped: "1,733". */
+export const fmtInt = (n: number) => INT.format(Math.round(n));
+
+/** "1 brew", "1,204 brews". */
+export const plural = (n: number, one: string, many = one + 's') =>
+  `${fmtInt(n)} ${n === 1 ? one : many}`;

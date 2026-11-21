@@ -36,6 +36,8 @@ Conventions for working on Ratio, shared with the owner's other self-hosted Clou
 - Toggle sliders and segmented controls (`SlideToggle`, `.slide`) draw their keyboard focus ring
   **inside** the button (an inset ring), because the track scrolls sideways and clips anything
   outside.
+- Deleting a bag, roaster or brew asks first in a small pop-up ("Delete Colombia?", Cancel and
+  Delete: `ConfirmButton` with `ask`), not a second tap.
 - Removing something (deleting a bean, brew or roaster, finishing a bag) shows a toast with
   **Undo** where the change can be undone. Deletes wait out the toast before reaching the server
   (`removeLater` in `lib/queries.ts`), so Undo just cancels them.
@@ -74,5 +76,4 @@ Conventions for working on Ratio, shared with the owner's other self-hosted Clou
 ## Still to do
 
 - `TagRow` shows the first three tags and folds the rest; it doesn't yet measure what fits.
-- Delete buttons still ask for a second tap before the Undo toast; drop it if Undo proves enough.
 - Insights rank rows (`.rk-l`) still truncate long names to one line.

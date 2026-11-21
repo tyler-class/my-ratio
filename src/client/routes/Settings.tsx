@@ -40,13 +40,12 @@ import {
   getState,
   installSteps,
   pushBlocker,
-  pushInfo,
   PUSH_TEXT,
   sendTest,
   setPrefs,
   type PushState,
 } from '../kit/push';
-import { BADGE_MEANS, NOTIFY_KINDS } from '@shared/logic/notify';
+import { NOTIFY_KINDS } from '@shared/logic/notify';
 
 const METHOD_SUGGESTIONS = [
   ...DEFAULT_METHODS,
@@ -146,7 +145,6 @@ export function Settings() {
           <label className="lbl">Brew methods</label>
           <MultiSelect
             label="Brew methods"
-            placeholder="Choose methods"
             value={byName(s.methods)}
             options={byName(METHOD_SUGGESTIONS)}
             onChange={(methods) => actions.saveSettings({ methods: byName(methods) })}
@@ -232,9 +230,14 @@ function Notifications() {
     }
   }
 
-  const info = pushInfo({ badge: BADGE_MEANS });
-  // Ratio's one evening notification, after the kit's "around 8 a.m." line.
-  info.lines.splice(2, 0, 'Rate your brew comes at 8 p.m. instead.');
+  // Said plainly for Ratio (the kit's shared wording read as a puzzle here).
+  const info = {
+    lines: [
+      'Turn them on separately on each phone or computer; each one keeps its own choices.',
+      'They arrive around 8 a.m. your time, except "Rate your brew", which comes around 8 p.m.',
+      'On iPhone or iPad, add Ratio to your Home Screen first (iOS 16.4 or later).',
+    ],
+  };
   const blocker = state && pushBlocker(state, 'Ratio');
   const on = !!state?.on;
   const row = { borderTop: '1px solid var(--line)', marginTop: 12, paddingTop: 12 };

@@ -1,4 +1,6 @@
+import type { BeanStatus } from '@shared/lookups';
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { fmtN } from '@shared/logic/units';
 import type { Tone } from '@shared/lookups';
 import { useFolded } from '../lib/view';
@@ -61,7 +63,7 @@ export function ChoiceInput({
           style={{ maxWidth: 220 }}
           autoFocus
           value={draft}
-          placeholder={placeholder ?? 'Type one, then Enter'}
+          placeholder={placeholder}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
@@ -137,7 +139,7 @@ export function MultiSelect({
   options,
   onChange,
   decorate = (o) => o,
-  placeholder = 'Choose',
+  placeholder = '',
   label,
   startOpen = false,
   single = false,
@@ -294,7 +296,7 @@ export function Select({
   value,
   onChange,
   groups,
-  placeholder = 'Choose',
+  placeholder = '',
   startOpen = false,
   onClose,
 }: {
@@ -477,7 +479,7 @@ export function TagInput({
       <input
         className="in"
         value={draft}
-        placeholder={placeholder ?? 'Type to add'}
+        placeholder={placeholder}
         onChange={(e) => {
           const v = e.target.value;
           if (v.endsWith(',')) add(v.slice(0, -1));
@@ -531,39 +533,112 @@ export function Field({
   );
 }
 
-/** Two taps to delete: the first arms it, the second confirms. */
+/**
+ * A delete button. With `ask` (deleting a bag, roaster or brew), it asks first in a small pop-up
+ * over everything: the question, an optional line under it, Cancel and Delete. Without it, two
+ * taps: the first arms it, the second confirms.
+ */
 export function ConfirmButton({
   children,
   confirm,
   onConfirm,
   className,
+  ask,
+  detail,
 }: {
   children: ReactNode;
-  confirm: string;
+  /** The armed button's text (two-tap mode). */
+  confirm?: string;
   onConfirm: () => void;
   className?: string;
+  /** The pop-up's question ("Delete Colombia?"). */
+  ask?: string;
+  /** A line under the question ("Its 6 brews go too."). */
+  detail?: string;
 }) {
   const [armed, setArmed] = useState(false);
   useEffect(() => {
-    if (!armed) return;
+    if (!armed || ask) return;
     const t = setTimeout(() => setArmed(false), 4000);
     return () => clearTimeout(t);
-  }, [armed]);
+  }, [armed, ask]);
   return (
-    <button
-      type="button"
-      className={cx('btn ghost danger', className)}
-      onClick={() => (armed ? onConfirm() : setArmed(true))}
-    >
-      <Icon name="trash" size={16} />
-      {armed ? confirm : children}
-    </button>
+    <>
+      <button
+        type="button"
+        className={cx('btn ghost danger', className)}
+        onClick={() => (armed && !ask ? onConfirm() : setArmed(true))}
+      >
+        <Icon name="trash" size={16} />
+        {armed && !ask ? confirm : children}
+      </button>
+      {ask && armed && (
+        <ConfirmDialog
+          question={ask}
+          detail={detail}
+          action={children}
+          onCancel={() => setArmed(false)}
+          onConfirm={() => {
+            setArmed(false);
+            onConfirm();
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+/** "Are you sure?" over everything (sheets included): Cancel, or the red action. */
+function ConfirmDialog({
+  question,
+  detail,
+  action,
+  onCancel,
+  onConfirm,
+}: {
+  question: string;
+  detail?: string;
+  action: ReactNode;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const id = useId();
+  useEffect(() => {
+    // Escape closes this pop-up only, not the sheet under it.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopImmediatePropagation();
+      onCancel();
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [onCancel]);
+  return createPortal(
+    <div className="cdlg-ov">
+      <div className="cdlg-scrim" onClick={onCancel} />
+      <div role="alertdialog" aria-modal="true" aria-labelledby={id} className="cdlg">
+        <h2 id={id}>{question}</h2>
+        {detail && <p className="sub">{detail}</p>}
+        <div className="cdlg-acts">
+          <button type="button" className="btn" autoFocus onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="button" className="btn danger-solid" onClick={onConfirm}>
+            <Icon name="trash" size={16} />
+            {action}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 
 /**
  * A sheet that rises from the bottom on phones (drag the handle down to dismiss, up to
- * expand) and opens as a centered dialog on wider screens.
+ * expand) and opens as a centered dialog on wider screens. Nothing done inside it shrinks it:
+ * once it has grown (a longer tab, more fields), it keeps that height while it's open. A `full`
+ * sheet (a bag) is always fully open, one height only.
  */
 export function Sheet({
   title,
@@ -571,14 +646,32 @@ export function Sheet({
   onClose,
   children,
   footer,
+  full,
 }: {
   title: ReactNode;
   sub?: ReactNode;
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  full?: boolean;
 }) {
   const titleId = useId();
+  const box = useRef<HTMLDivElement>(null);
+  // The tallest it has been while open: it never shrinks back below that.
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el || full || typeof ResizeObserver === 'undefined') return;
+    let tallest = 0;
+    const ro = new ResizeObserver(() => {
+      const h = el.getBoundingClientRect().height;
+      if (h > tallest + 0.5) {
+        tallest = h;
+        el.style.setProperty('--sheet-min', `${h}px`);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [full]);
   const drag = useRef<{ y: number; t: number } | null>(null);
   const [dy, setDy] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -621,7 +714,7 @@ export function Sheet({
       if (d > 120 || speed > 0.6) {
         if (expanded && d < 260 && speed <= 0.6) setExpanded(false);
         else onClose();
-      } else if (d < -40) setExpanded(true);
+      } else if (d < -40 && !full) setExpanded(true);
     },
     onPointerCancel: () => {
       drag.current = null;
@@ -641,7 +734,8 @@ export function Sheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={cx('sheet', expanded && 'expanded')}
+        ref={box}
+        className={cx('sheet', (expanded || full) && 'expanded', full && 'full')}
         style={{
           transform: dy ? `translateY(${dy}px)` : undefined,
           transition: dragging ? 'none' : 'transform .22s ease, height .22s ease',
@@ -771,7 +865,9 @@ export function InfoTip({ label, children }: { label: string; children: ReactNod
 
 type SlideToggleProps<T extends string> = {
   /** [value, label], or [value, label, tone]: a chosen option with a tone is tinted by it. */
-  options: readonly (readonly [T, ReactNode] | readonly [T, ReactNode, Tone | undefined])[];
+  options: readonly (
+    readonly [T, ReactNode] | readonly [T, ReactNode, Tone | `st-${BeanStatus}` | undefined]
+  )[];
   label: string;
   className?: string;
 } & (
@@ -785,6 +881,7 @@ type SlideToggleProps<T extends string> = {
  * width equally; one whose label needs more room grows to fit it, and when they can't all fit
  * the toggle scrolls sideways. The thumb is measured from the chosen option. An option with a
  * tone (good, warn, bad, blue, gray, orange) tints the thumb and its label when chosen; others use the accent.
+ * A bag status as the tone (st-drinking …) uses that status's own colours, as on Home's timeline.
  */
 /** A titled group of fields in a form, on its own card. */
 export function FormSection({

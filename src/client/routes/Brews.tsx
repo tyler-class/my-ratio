@@ -6,6 +6,7 @@ import { useView } from '../lib/view';
 import { BrewRow } from '../components/BrewRow';
 import { Icon } from '../components/Icon';
 import { useSheets } from '../sheets/context';
+import { plural } from '@shared/logic/units';
 import {
   Empty,
   FilterButton,
@@ -61,11 +62,16 @@ export function Brews() {
   }
   return (
     <div>
+      {/* Logging: at the right of the header row on phones; wider, at the end of the search row. */}
       <PageHeader
         title="Brews"
         icon="book"
         action={
-          <button type="button" className="btn primary sm" onClick={() => sheets.log()}>
+          <button
+            type="button"
+            className="btn primary sm add-btn add-top"
+            onClick={() => sheets.log()}
+          >
             <Icon name="plus" size={16} /> Log a brew
           </button>
         }
@@ -74,15 +80,23 @@ export function Brews() {
         <input
           className="in search"
           type="search"
+          aria-label="Search"
           placeholder="Search beans, roasters, notes"
           value={q}
           onChange={(e) => setView({ q: e.target.value })}
         />
         <FilterButton count={active} onClick={() => setFilters(true)} />
+        <button
+          type="button"
+          className="btn primary sm add-btn add-row"
+          onClick={() => sheets.log()}
+        >
+          <Icon name="plus" size={16} /> Log a brew
+        </button>
       </div>
       <div className="sub listmeta">
         {[
-          `${list.length} ${list.length === 1 ? 'brew' : 'brews'}`,
+          plural(list.length, 'brew'),
           rated !== 'all' && (rated === 'rated' ? 'Rated' : 'Unrated'),
           method,
         ]

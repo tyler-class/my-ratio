@@ -27,7 +27,7 @@ import {
   type Model,
 } from '@shared/logic/model';
 import { dayDiff, dayIn, parseLocal, whenIn } from '@shared/logic/tz';
-import { r1, ratioOf, tempIn, tempOut } from '@shared/logic/units';
+import { r1, tempIn, tempOut } from '@shared/logic/units';
 import type { AppState, Bean, Brew, Roaster, Settings } from '@shared/types';
 import { EXAMPLE_PROMPTS, MCP_PROMPTS } from '@shared/examples';
 import { app } from './app';
@@ -279,9 +279,9 @@ function buildServer(call: Call) {
           'Ratio is a personal coffee brewing log: roasters → bags of beans → brews.',
           'Start with coffee_overview to see what is open, recent brews and the owner’s units and equipment.',
           'Beans, roasters and brews can be named loosely: a partial bean name works, and brews can be "last", "#392" or 392.',
-          'log_brew copies the recipe from that bag’s last brew unless told otherwise, so "log a brew of the Kenya, 8/10, a bit sour" is one call.',
+          'log_brew saves only what you pass: it fills in nothing and copies nothing. Before logging, ask the owner for the bag and the recipe (method, grinder, grind, dose, water or ratio, temperature) and any rating or notes, never guessing or reusing a past brew’s numbers on your own. Read the brew back and log it once they confirm. get_bean shows earlier brews of a bag if they want to repeat one.',
           'To rate or fix a brew, use update_brew with brew "last" or its number.',
-          'Ratings are 0–10 (halves allowed). Temperatures use the owner’s unit shown in coffee_overview.',
+          'Ratings are whole numbers from 1 to 10. Temperatures use the owner’s unit shown in coffee_overview.',
           'Times without an offset are the owner’s local time.',
           'To add a photo the owner has (or will take) on their phone, call photo_upload_link and give them the link; a photo seen in the chat cannot be passed to a tool. add_photo takes a public image URL or real base64 bytes.',
         ].join(' ') + GETTING_STARTED,
@@ -328,16 +328,6 @@ function buildServer(call: Call) {
     return hit;
   }
 
-  /** The bag you most likely mean when you don't say: the open bag brewed most recently. */
-  function defaultBean(c: Ctx): BeanView {
-    const open = c.m.beans.filter((b) => b.status === 'drinking');
-    if (open.length === 1) return open[0]!;
-    const recent = c.m.brews.find((b) => b.bean && b.bean.status === 'drinking')?.bean;
-    if (recent) return recent;
-    if (c.m.brews[0]?.bean) return c.m.brews[0].bean;
-    throw new ToolError('Say which bean. Use find_beans to see the bags.');
-  }
-
   async function roasterIdFor(c: Ctx, name: string | null | undefined, created: string[]) {
     if (name === undefined) return undefined;
     if (name === null || !name.trim()) return null;
@@ -370,7 +360,7 @@ function buildServer(call: Call) {
     {
       title: 'Coffee overview',
       description:
-        'Start here. What is open on the bar (with grams left), what is resting, frozen or on the way, the last few brews, brews still waiting for a rating, headline stats (brews this week, 30-day average rating, stock runway, cost per cup), plus the owner’s methods, grinders, temperature unit, currency and today’s date.',
+        'Start here. What is open on the bar (with grams left), what is resting, frozen or on the way, the last few brews, brews still waiting for a rating, headline stats (brews this week, 30-day average rating, stock runway, cost per brew), plus the owner’s methods, grinders, temperature unit, currency and today’s date.',
       inputSchema: z.object({}),
       annotations: { readOnlyHint: true },
     },
@@ -527,7 +517,7 @@ function buildServer(call: Call) {
     {
       title: 'Get a bean',
       description:
-        'Everything about one bag: origin and roast details, grams used and left, price per cup, how each grind setting has rated (dial-in), its best and latest brew including “next time” notes, and recent brews.',
+        'Everything about one bag: origin and roast details, grams used and left, cost per brew, how each grind setting has rated (dial-in), its best and latest brew including “next time” notes, and recent brews.',
       inputSchema: z.object({
         bean: z.string().describe('Bean name (partial is fine), "name roaster", or id'),
         brews: z
@@ -780,7 +770,7 @@ function buildServer(call: Call) {
       ),
     water_temp: z.number().optional().describe('In the owner’s temperature unit'),
     recipe_notes: z.string().optional().describe('Pour schedule, bloom, total time…'),
-    rating: z.number().min(0).max(10).optional(),
+    rating: z.number().min(0).max(10).optional().describe('A whole number, 1 to 10.'),
     extraction: z.enum(EXTRACTION_KEYS).optional(),
     strength: z
       .preprocess(normalizeStrength, z.enum(STRENGTH_KEYS).optional())
@@ -795,43 +785,34 @@ function buildServer(call: Call) {
     {
       title: 'Log a brew',
       description:
-        'Record a brew. Anything not given is copied from the last brew of that bag (method, grinder, grind, dose, ratio, temperature, recipe notes) unless copy_last is false; tasting results are never copied. bean defaults to the open bag brewed most recently. Give dose + ratio, dose + water, or water + ratio. Returns the new brew number.',
+        'Record a brew exactly as the owner gave it: only what you pass is saved, nothing is copied or filled in. Ask for the bag and every number first and confirm before calling. Give dose + ratio, dose + water, or water + ratio. Returns the new brew number.',
       inputSchema: z.object({
-        bean: z.string().optional(),
+        bean: z.string().describe('The bag, by name (a partial name works) or id'),
         ...brewFields,
-        copy_last: z.boolean().optional().describe('Default true'),
       }),
     },
     safe(async (a) => {
       const c = await load();
-      const bean = a.bean ? findBean(c, a.bean) : defaultBean(c);
-      const base = a.copy_last === false ? null : (bean.last ?? c.m.brews[0] ?? null);
-      const sameBag = base?.bean_id === bean.id;
-      let dose = a.dose_g ?? base?.dose_g ?? null;
+      const bean = findBean(c, a.bean);
+      // Only what was given: the dose, water and ratio work each other out when two are given.
+      let dose = a.dose_g ?? null;
       let water = a.water_ml ?? null;
-      const baseRatio = ratioOf(base?.dose_g ?? null, base?.water_ml ?? null);
-      const ratio = a.ratio ?? (a.water_ml != null && a.dose_g != null ? null : baseRatio);
-      if (water == null && dose != null && ratio) water = Math.round(dose * ratio * 10) / 10;
-      if (a.dose_g == null && a.water_ml != null && a.ratio)
-        dose = Math.round((a.water_ml / a.ratio) * 10) / 10;
-      if (water == null) water = base?.water_ml ?? null;
-      const grinder = a.grinder ?? base?.grinder ?? c.s.grinders[0] ?? null;
-      // A grind setting from another bag (or another grinder's dial) is a guess at best; only
-      // carry it within a bag on the same grinder. A given setting lands on the grinder's dial.
-      const same = sameBag && base?.grinder === grinder;
-      const g = a.grind ?? (same ? (base?.grind_text ?? base?.grind) : null) ?? null;
-      const { grind, grind_text } = grindFor(grinder, g, c.s.grind_scales);
+      if (water == null && dose != null && a.ratio) water = Math.round(dose * a.ratio * 10) / 10;
+      if (dose == null && water != null && a.ratio) dose = Math.round((water / a.ratio) * 10) / 10;
+      const grinder = a.grinder ?? null;
+      const { grind, grind_text } = grindFor(grinder, a.grind ?? null, c.s.grind_scales);
+      const prev = bean.last;
       const brew = await call<Brew>('POST', '/brews', {
         bean_id: bean.id,
         brewed_at: brewedAt(c, a.brewed_at),
-        method: a.method ?? base?.method ?? c.s.methods[0] ?? null,
+        method: a.method ?? null,
         grinder,
         grind,
         grind_text,
         dose_g: dose,
         water_ml: water,
-        water_temp_c: temp(c, a.water_temp) ?? base?.water_temp_c ?? null,
-        recipe_notes: a.recipe_notes ?? (sameBag ? base?.recipe_notes : null) ?? null,
+        water_temp_c: temp(c, a.water_temp) ?? null,
+        recipe_notes: a.recipe_notes ?? null,
         rating: a.rating ?? null,
         extraction: a.extraction ?? null,
         strength: a.strength ?? null,
@@ -842,8 +823,9 @@ function buildServer(call: Call) {
       const view = fresh.m.brewMap.get(brew.id)!;
       return {
         logged: brewOut(view, fresh, true),
-        copied_from: base && a.copy_last !== false ? `brew #${base.num}` : null,
-        reminder: sameBag && base?.next_time ? `Last time’s note: ${base.next_time}` : undefined,
+        reminder: prev?.next_time
+          ? `This bag’s last “next time” note: ${prev.next_time}`
+          : undefined,
         bag: stockLine(fresh.m.beanMap.get(bean.id)!, fresh),
       };
     }),
@@ -865,7 +847,13 @@ function buildServer(call: Call) {
         water_ml: z.number().positive().nullable().optional(),
         water_temp: z.number().nullable().optional(),
         recipe_notes: z.string().nullable().optional(),
-        rating: z.number().min(0).max(10).nullable().optional(),
+        rating: z
+          .number()
+          .min(0)
+          .max(10)
+          .nullable()
+          .optional()
+          .describe('A whole number, 1 to 10.'),
         extraction: z.enum(EXTRACTION_KEYS).nullable().optional(),
         strength: z.preprocess(normalizeStrength, z.enum(STRENGTH_KEYS).nullable().optional()),
         tasting_notes: z.string().nullable().optional(),
@@ -1194,7 +1182,7 @@ function buildServer(call: Call) {
     ({ bean }) =>
       ask(`I just finished "${bean}" in Ratio.
 
-1. get_bean it and sum it up in a few lines: brews, average and best rating, the recipe that worked best, and cost per cup.
+1. get_bean it and sum it up in a few lines: brews, average and best rating, the recipe that worked best, and cost per brew.
 2. Ask whether I'd buy it again (definitely, yes, maybe or no), then call update_bean with status "finished" and that buy_again.
 3. Call coffee_overview and suggest which bag to open next (resting bags that are ready first, then the freezer). Ask before moving it to drinking with update_bean.`),
   );

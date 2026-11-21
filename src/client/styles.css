@@ -717,14 +717,24 @@ textarea.in {
   text-align: center;
   font-weight: 650;
 }
+.step {
+  align-items: center;
+}
+/* − and +: round buttons, their icons dead centre. */
 .step button {
+  display: grid;
+  place-items: center;
   width: 44px;
+  height: 44px;
   flex: none;
+  padding: 0;
   border: 1px solid var(--line);
   background: var(--surface);
-  border-radius: 12px;
-  font-size: 20px;
-  font-weight: 600;
+  border-radius: 50%;
+  color: var(--ink);
+}
+.step button svg {
+  display: block;
 }
 .step.compact {
   max-width: 220px;
@@ -1346,6 +1356,9 @@ textarea.in {
   /* Never under the phone's status bar and the browser's blurred top bar: keep the sheet's
      top below the safe area plus a margin. */
   max-height: calc(100dvh - var(--safe-top) - var(--sheet-gap));
+  /* Never shrinks while open (Sheet sets --sheet-min), but never past the screen either (the
+     keyboard opening, say). */
+  min-height: min(var(--sheet-min, 0px), calc(100dvh - var(--safe-top) - var(--sheet-gap)));
   display: flex;
   flex-direction: column;
   border-radius: 22px 22px 0 0;
@@ -1421,7 +1434,12 @@ textarea.in {
   .sheet {
     border-radius: 24px;
     max-height: calc(100dvh - var(--safe-top) - 48px);
+    min-height: min(var(--sheet-min, 0px), calc(100dvh - var(--safe-top) - 48px));
     padding-bottom: 0;
+  }
+  /* A bag's sheet is one height here too: as tall as the dialog can be, whatever the tab. */
+  .sheet.full {
+    height: calc(100dvh - var(--safe-top) - 48px);
   }
   .handle {
     visibility: hidden;
@@ -2041,8 +2059,19 @@ textarea.in {
   margin-bottom: 8px;
 }
 .viewswitch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
   margin-bottom: 14px;
-  max-width: 360px;
+}
+.viewswitch > .slide {
+  flex: 0 1 360px;
+  min-width: 0;
+}
+.viewswitch > .btn,
+.searchrow > .add-btn {
+  flex: none;
 }
 .in.when {
   max-width: 280px;
@@ -2259,27 +2288,10 @@ textarea.in {
   fill: color-mix(in srgb, var(--accent) 22%, var(--surface));
 }
 
-/* ---- stacked months: separated segments ---- */
+/* ---- stacked months (Dial-in accuracy): the same pastel fill and solid outline as every other
+   bar; each segment's own outline keeps the stack readable. ---- */
 .pn-wrap [data-panel='dialin'] .chart [class^='bar-'] {
-  stroke: var(--surface);
-  stroke-width: 2px;
   rx: 4px;
-  fill-opacity: 0.9;
-}
-.pn-wrap [data-panel='dialin'] .chart .bar-good {
-  fill: var(--good);
-}
-.pn-wrap [data-panel='dialin'] .chart .bar-warn {
-  fill: var(--warn);
-}
-.pn-wrap [data-panel='dialin'] .chart .bar-bad {
-  fill: var(--bad);
-}
-.pn-wrap [data-panel='dialin'] .chart .bar-blue {
-  fill: var(--blue);
-}
-.pn-wrap [data-panel='dialin'] .chart .bar-gray {
-  fill: var(--gray);
 }
 
 /* ---- scatter: ringed dots so overlaps separate ---- */
@@ -2314,7 +2326,8 @@ textarea.in {
   transition: background 0.12s;
 }
 @media (hover: hover) and (pointer: fine) {
-  .pn-wrap .rk:hover {
+  /* Only rows that open something shade on hover. */
+  .pn-wrap .rk.click:hover {
     background: var(--i-soft);
   }
 }
@@ -2342,7 +2355,7 @@ textarea.in {
   opacity: 0.8;
 }
 @media (hover: hover) and (pointer: fine) {
-  .pn-wrap .rk:hover .bar > i {
+  .pn-wrap .rk.click:hover .bar > i {
     opacity: 1;
   }
 }
@@ -2407,10 +2420,32 @@ textarea.in {
   background: var(--surface);
   color: var(--ink2);
 }
+.ratio-lock {
+  position: relative;
+}
+/* Locked: the circle takes an outline in the lock's colour, and short lines run from it to the
+   dose and water fields on either side, joining the three. */
 .ratio-lock.on {
-  border-color: transparent;
+  border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent);
+}
+.ratio-lock.on::before,
+.ratio-lock.on::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 1.5px;
+  margin-top: -0.75px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.ratio-lock.on::before {
+  right: 100%;
+}
+.ratio-lock.on::after {
+  left: 100%;
 }
 .ratio-lock:focus-visible {
   outline: 2px solid var(--accent);
@@ -4041,4 +4076,292 @@ button.bv-v.unset {
 .bv-v.unset,
 button.bv-v.unset {
   opacity: 0.45;
+}
+
+/* A bag's status, and while drinking a thin line under that step filling as the bag is brewed
+   through. Placed in the gap above the tabs, so it adds no height. */
+.bv-status {
+  position: relative;
+}
+.bv-used {
+  position: absolute;
+  bottom: -9px;
+  width: 44px;
+  height: 4px;
+  transform: translateX(-50%);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bv-used i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+/* The rating: the whole numbers 1 to 10 on one sliding toggle, its track shading from red at 1
+   to green at 10. */
+.slide.rate-scale {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--bad) 34%, var(--surface2)),
+    color-mix(in srgb, var(--warn) 30%, var(--surface2)) 50%,
+    color-mix(in srgb, var(--good) 36%, var(--surface2))
+  );
+}
+.slide.rate-scale button {
+  justify-content: center;
+  padding: 8px 2px;
+  min-width: 28px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+/* Extraction and Strength: their tracks are white, not the usual tan. */
+.slide.on-white {
+  background: #fff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .slide.on-white {
+    background: var(--surface);
+  }
+}
+:root[data-theme='dark'] .slide.on-white {
+  background: var(--surface);
+}
+
+/* Every progress bar (a bag's remaining coffee, the Drinking line, Insights' ranked rows): the
+   same soft track for the part not done, with a thin outline (drawn outside, so no bar changes
+   size) so the whole length reads against the card. The fill stays each bar's own. */
+:root {
+  --bar-track: color-mix(in srgb, var(--line) 70%, transparent);
+  --bar-edge: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.bar,
+.pn-wrap .rk .bar,
+.bv-used {
+  background: var(--bar-track);
+  outline: 1px solid var(--bar-edge);
+  outline-offset: 0;
+}
+
+/* A bag's status as a pill on its card (Beans, All): the status's icon and colours, as on the
+   Home timeline's dots. */
+.tag.st-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding-left: 8px;
+}
+.tag.st-pill.s-ordered {
+  background: #8b8178;
+  color: #fff;
+}
+.tag.st-pill.s-freezing {
+  background: #3f82c4;
+  color: #fff;
+}
+.tag.st-pill.s-resting {
+  background: #1f2c55;
+  color: #fff;
+}
+.tag.st-pill.s-drinking {
+  background: var(--accent);
+  color: #fff;
+}
+.tag.st-pill.s-finished {
+  background: #a8d5a0;
+  color: #2d6a33;
+}
+
+/* A toggle of bag statuses (Beans' Status filter): the chosen status takes its own colours, as
+   on Home's timeline and the cards' status pills. */
+.slide button:has(> svg) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.slide > .slide-thumb.t-st-ordered {
+  background: #8b8178;
+}
+.slide > .slide-thumb.t-st-freezing {
+  background: #3f82c4;
+}
+.slide > .slide-thumb.t-st-resting {
+  background: #1f2c55;
+}
+.slide > .slide-thumb.t-st-drinking {
+  background: var(--accent);
+}
+.slide > .slide-thumb.t-st-finished {
+  background: #a8d5a0;
+}
+.slide button.t-st-ordered[aria-selected='true'],
+.slide button.t-st-freezing[aria-selected='true'],
+.slide button.t-st-resting[aria-selected='true'],
+.slide button.t-st-drinking[aria-selected='true'] {
+  color: #fff;
+}
+.slide button.t-st-finished[aria-selected='true'] {
+  color: #2d6a33;
+}
+
+/* Recipe book: a row opens that brew; its Brew again button (right) starts a new one from it. */
+.ri.ri-again {
+  position: relative;
+}
+.ri.ri-again .rm {
+  padding-right: 110px;
+}
+.ri.ri-again .again {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+/* A roaster's sheet: its numbers as tiles, and its bags as rows with their status pill. */
+.rs-stats {
+  margin-top: 0;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+.rs-stats .stat .d {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rs-bags {
+  display: flex;
+  flex-direction: column;
+}
+.rs-bag {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 2px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+.rs-bag:first-child {
+  border-top: 0;
+}
+.rs-bag-t {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.rs-bag-t .t1 {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rs-bag-t .t2 {
+  font-size: 13px;
+  color: var(--ink2);
+}
+.rs-bag .st-pill {
+  flex: none;
+}
+
+/* A new brew's "Starting from" panel: what the form was filled from, the last brew's "next time"
+   note, and the other choice (best or last brew) as a link. */
+.start-from .start-next {
+  margin-top: 6px;
+  font-weight: 650;
+}
+.start-from .start-next span {
+  font-weight: 500;
+  color: var(--ink2);
+}
+.start-from .start-switch {
+  display: block;
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* Add a bag / Add roaster / Log a brew: beside the toggle or search row on wider screens; on
+   phones, at the right end of the page's header row. */
+.add-btn.add-top {
+  display: none;
+}
+@media (max-width: 767px) {
+  .add-btn.add-top {
+    display: inline-flex;
+    margin-left: auto;
+  }
+  .add-btn.add-row {
+    display: none;
+  }
+}
+
+/* "Are you sure?" before deleting a bag, roaster or brew: a small dialog over everything that
+   lifts in (the backdrop fades, the panel rises). */
+.cdlg-ov {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.cdlg-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  animation: fade 0.18s ease both;
+}
+.cdlg {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  padding: 20px;
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 0.25);
+  animation: rise 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.cdlg h2 {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.cdlg .sub {
+  margin: 6px 0 0;
+}
+.cdlg-acts {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+.btn.danger-solid {
+  background: var(--bad);
+  border-color: var(--bad);
+  color: #fff;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cdlg-scrim,
+  .cdlg {
+    animation: none;
+  }
 }

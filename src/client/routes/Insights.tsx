@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { EXTRACTION } from '@shared/lookups';
 import { daysBetween, MO, startOfDay } from '@shared/logic/dates';
 import { mean, streak } from '@shared/logic/model';
-import { fmtN, r1 } from '@shared/logic/units';
+import { fmtInt, fmtN, r1 } from '@shared/logic/units';
 import { money, money0 } from '../lib/format';
 import { useActions, useModel } from '../lib/queries';
 import { PanelBoard, type PanelDef } from '../components/Panels';
@@ -27,13 +27,14 @@ const DIMS = [
   ['method', 'Method'],
   ['grinder', 'Grinder'],
 ] as const;
+/** Rated brews a group needs before its average is ranked. */
+const TASTE_MIN = 3;
 
 export function Insights() {
   const data = useModel();
   const sheets = useSheets();
   const actions = useActions();
   const [dim, setDim] = useState<(typeof DIMS)[number][0]>('origin');
-  const [minN, setMinN] = useState(3);
   const [rm, setRm] = useState<string | null>(null);
   if (!data) return null;
   const { m, state } = data;
@@ -78,7 +79,8 @@ export function Insights() {
   }
   const taste = [...gm]
     .map(([k, v]) => ({ k, n: v.length, avg: mean(v) ?? 0 }))
-    .filter((g) => g.n >= minN)
+    // An average of one or two brews says little: a group needs a few to be ranked.
+    .filter((g) => g.n >= TASTE_MIN)
     .sort((a, b) => b.avg - a.avg);
 
   const methods = [...new Set(rated.map((b) => b.method).filter(Boolean) as string[])];
@@ -125,14 +127,24 @@ export function Insights() {
     .map(([, v]) => v)
     .slice(-10);
 
-  const rs = new Map<string, { name: string; spend: number; grams: number; bags: number }>();
+  // Spend by roaster (keyed by the roaster, so a row can open its record).
+  const rs = new Map<
+    string,
+    { id: string; name: string; spend: number; grams: number; bags: number }
+  >();
   for (const b of m.beans) {
-    if (!b.cost || !b.roasterName) continue;
-    const r = rs.get(b.roasterName) ?? { name: b.roasterName, spend: 0, grams: 0, bags: 0 };
+    if (!b.cost || !b.roaster_id || !b.roasterName) continue;
+    const r = rs.get(b.roaster_id) ?? {
+      id: b.roaster_id,
+      name: b.roasterName,
+      spend: 0,
+      grams: 0,
+      bags: 0,
+    };
     r.spend += b.cost;
     r.grams += b.bag_g ?? 0;
     r.bags += 1;
-    rs.set(b.roasterName, r);
+    rs.set(b.roaster_id, r);
   }
   const spendRows = [...rs.values()].sort((a, b) => b.spend - a.spend);
   const top = m.beans.filter((b) => b.rated.length >= 2).sort((a, b) => b.avg! - a.avg!);
@@ -173,28 +185,28 @@ export function Insights() {
           <Stat
             v={m.brews.length}
             l="Brews logged"
-            d={`${m.brews.filter((b) => daysBetween(b.date, now) <= 29).length} in 30 days`}
+            d={`${fmtInt(m.brews.filter((b) => daysBetween(b.date, now) <= 29).length)} in 30 days`}
           />
           <Stat
             v={avg != null ? fmtN(r1(avg)) : '–'}
             l="Average rating"
-            d={`${rated.length} rated`}
+            d={`${fmtInt(rated.length)} rated`}
           />
           <Stat v={`${st} ${st === 1 ? 'day' : 'days'}`} l="Brew streak" />
           <Stat
             v={m.beans.length}
             l="Bags tried"
-            d={`${m.beans.filter((b) => b.status === 'finished').length} finished`}
+            d={`${fmtInt(m.beans.filter((b) => b.status === 'finished').length)} finished`}
           />
           <Stat
             v={money0(spent, cur)}
             l="Spent on beans"
-            d={cpc != null ? `${money(cpc, cur)} per cup` : undefined}
+            d={cpc != null ? `${money(cpc, cur)} per brew` : undefined}
           />
           <Stat
-            v={m.runway != null ? `${Math.round(m.runway)} d` : '–'}
+            v={m.runway != null ? `${fmtInt(m.runway)} d` : '–'}
             l="Runway"
-            d={`${Math.round(m.stock)} g, ${Math.round(m.burn)} g/day`}
+            d={`${fmtInt(m.stock)} g, avg. ${fmtInt(m.burn)} g / day`}
           />
         </div>
       ),
@@ -226,27 +238,18 @@ export function Insights() {
     {
       id: 'taste',
       icon: 'palette',
-      title: 'Taste explorer',
+      title: 'Average rating',
+      sub: `By ${DIMS.find(([k]) => k === dim)![1].toLowerCase()}, best first (${TASTE_MIN}+ brews each)`,
       size: 'full',
       body: (
         <>
-          <div
-            className="flexrow"
-            style={{ justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap' }}
-          >
+          <div className="flexrow" style={{ marginBottom: 14 }}>
             <SlideToggle
               label="Group by"
               className="fit"
               value={dim}
               options={DIMS}
               onChange={setDim}
-            />
-            <SlideToggle
-              label="Minimum brews"
-              className="fit"
-              value={String(minN)}
-              options={[1, 3, 5, 10].map((n) => [String(n), `${n}+ brews`] as const)}
-              onChange={(n) => setMinN(Number(n))}
             />
           </div>
           {taste.length ? (
@@ -260,8 +263,8 @@ export function Insights() {
               max={10}
             />
           ) : (
-            <Empty icon="palette" title="Not enough rated brews">
-              Lower the minimum to see this cut.
+            <Empty icon="palette" title="Not enough rated brews yet">
+              Each {DIMS.find(([k]) => k === dim)![1].toLowerCase()} needs {TASTE_MIN} rated brews.
             </Empty>
           )}
         </>
@@ -349,7 +352,7 @@ export function Insights() {
                 key: b.id,
                 label: b.name,
                 value: b.avg!,
-                vl: `${fmtN(r1(b.avg!))} · ${b.rated.length} brews`,
+                vl: `${fmtN(r1(b.avg!))} · ${fmtInt(b.rated.length)} brews`,
                 sub: b.roasterName + (b.perG ? ` · ${money(b.perG * m.avgDose, cur)} / cup` : ''),
                 onClick: () => sheets.bean(b.id),
               }))}
@@ -380,7 +383,9 @@ export function Insights() {
                     <div className="t1">{b.name}</div>
                     <div className="t2">
                       {b.roasterName}
-                      {b.cost ? ` · ${money(b.cost, cur)} / ${b.bag_g ?? '?'} g` : ''}
+                      {b.cost
+                        ? ` · ${money(b.cost, cur)} / ${b.bag_g != null ? fmtInt(b.bag_g) : '?'} g`
+                        : ''}
                     </div>
                   </div>
                   <span className={'tag ' + (b.buy_again === 'definitely' ? 'good' : 'acc')}>
@@ -408,8 +413,9 @@ export function Insights() {
           {spendRows.length ? (
             <Rank
               rows={spendRows.slice(0, 8).map((r) => ({
-                key: r.name,
+                key: r.id,
                 label: r.name,
+                onClick: () => sheets.roaster(r.id),
                 value: r.spend,
                 vl: money0(r.spend, cur),
                 sub: `${r.bags} ${r.bags === 1 ? 'bag' : 'bags'}${r.grams ? ` · ${money((r.spend / r.grams) * 100, cur)} / 100 g` : ''}`,
@@ -428,7 +434,7 @@ export function Insights() {
       id: 'recipes',
       icon: 'note',
       title: 'Recipe book',
-      sub: 'Your best-rated brews. Tap one to brew it again.',
+      sub: 'Your best-rated brews',
       size: 'half',
       body: (
         <>
@@ -438,15 +444,22 @@ export function Insights() {
             </Empty>
           )}
           {best.slice(0, 6).map((b) => (
-            <div className="ri" key={b.id}>
-              <button type="button" className="rm" onClick={() => sheets.log({ fromBrewId: b.id })}>
+            <div className="ri ri-again" key={b.id}>
+              <button
+                type="button"
+                className="btn sm again"
+                onClick={() => sheets.log({ fromBrewId: b.id })}
+              >
+                Brew again
+              </button>
+              <button type="button" className="rm" onClick={() => sheets.editBrew(b.id)}>
                 <RB v={b.rating} />
                 <div className="mid">
                   <div className="t1">{b.beanName}</div>
                   <div className="t2">
                     {b.method ? b.method + ' · ' : ''}
-                    {fmtN(b.dose_g)} g → {b.water_ml != null ? Math.round(b.water_ml) : '–'} mL ·
-                    grind {grindLabel(b, state.settings.grind_scales) ?? '–'}
+                    {fmtN(b.dose_g)} g → {b.water_ml != null ? fmtInt(b.water_ml) : '–'} mL · grind{' '}
+                    {grindLabel(b, state.settings.grind_scales) ?? '–'}
                   </div>
                 </div>
               </button>

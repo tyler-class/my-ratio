@@ -235,30 +235,33 @@ describe('MCP', () => {
     expect(first.error).toBeNull();
     expect(first.data.logged).toMatchObject({ ratio: '1:16', water_temp: '201°F' });
 
-    // Second brew names nothing but the rating: bean, recipe and temp carry over.
+    // A second brew saves only what's given: nothing is copied from the first.
     const second = await tool<{
       logged: {
         num: number;
         bean: string;
-        grind: string;
-        dose_g: number;
-        water_ml: number;
+        grind: string | null;
+        dose_g: number | null;
         rating: number;
       };
-      copied_from: string;
       reminder: string;
-    }>(t, 'log_brew', { rating: 8, extraction: 'under', tasting_notes: 'Bright, a bit sour' });
-    expect(second.error).toBeNull();
-    expect(second.data.logged).toMatchObject({
-      bean: 'Kenya Gachatha AA',
-      // As written on the Ode's dial.
-      grind: '6.2',
-      dose_g: 20,
-      water_ml: 320,
+    }>(t, 'log_brew', {
+      bean: 'gachatha',
       rating: 8,
+      extraction: 'under',
+      tasting_notes: 'Bright, a bit sour',
     });
+    expect(second.error).toBeNull();
+    expect(second.data.logged).toMatchObject({ bean: 'Kenya Gachatha AA', rating: 8 });
+    expect(second.data.logged.dose_g ?? null).toBeNull();
+    expect(second.data.logged.grind ?? null).toBeNull();
     expect(second.data.logged.num).toBe(first.data.logged.num + 1);
+    // The bag's last "next time" note is passed on, as a reminder only.
     expect(second.data.reminder).toContain('Grind finer');
+
+    // The bag has to be named.
+    const unnamed = await tool(t, 'log_brew', { rating: 6 });
+    expect(unnamed.error).not.toBeNull();
 
     // Rate the first one by number, then fix the last one.
     const rated = await tool<{ updated: { rating: number } }>(t, 'update_brew', {
@@ -268,6 +271,7 @@ describe('MCP', () => {
     expect(rated.data.updated.rating).toBe(7.5);
     const fixed = await tool<{ updated: { grind: string; when: string } }>(t, 'update_brew', {
       brew: 'last',
+      grinder: 'Fellow Ode',
       // Not a setting the Ode has: it lands on the nearest one.
       grind: 6.4,
       brewed_at: '2026-11-04 07:15',
@@ -285,7 +289,8 @@ describe('MCP', () => {
       'get_bean',
       { bean: 'Sey Kenya' },
     );
-    expect(detail.data).toMatchObject({ used_g: 40, remaining_g: 210 });
+    // Only the first brew had a dose (the second gave none, and nothing is filled in).
+    expect(detail.data).toMatchObject({ used_g: 20, remaining_g: 230 });
 
     const over = await tool<{
       drinking: { name: string }[];

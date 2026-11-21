@@ -8,6 +8,7 @@ const P = {
     '<path d="M7 7.5h10l1.1 11.8a1.6 1.6 0 0 1-1.6 1.7H7.5a1.6 1.6 0 0 1-1.6-1.7z"/><path d="M7 7.5V3.5h10v4M7 5.5h10"/><circle cx="12" cy="12.5" r="1.5"/><path d="M3 3l18 18"/>',
   layers: '<path d="M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  minus: '<path d="M5 12h14"/>',
   grip: '<circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>',
   eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
   eyeOff:

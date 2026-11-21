@@ -107,7 +107,11 @@ export function restInfo(
   /** The day of its first brew: the clock stops there. */
   firstBrew?: string | null,
 ): RestInfo | null {
-  const until = firstBrew && firstBrew < today ? firstBrew : today;
+  // A first brew dated before the roast can't be right (a mistyped date, or made-up data): the
+  // clock doesn't stop there, or it would read 0 rested while the ready date (from the roast)
+  // says otherwise.
+  const brewed = firstBrew && (!bean.roasted_on || firstBrew >= bean.roasted_on) ? firstBrew : null;
+  const until = brewed && brewed < today ? brewed : today;
   const restingSince =
     sortEvents(evs)
       .filter((e) => e.status === 'resting')

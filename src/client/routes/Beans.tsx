@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { statusOf } from '@shared/lookups';
-import { r1 } from '@shared/logic/units';
+import { statusOf, type BeanStatus } from '@shared/lookups';
+import { STATUS_ICON } from '../lib/statusIcons';
+import { plural, r1 } from '@shared/logic/units';
 import type { BeanView } from '@shared/logic/model';
 import { useModel } from '../lib/queries';
 import { useView } from '../lib/view';
@@ -69,21 +70,18 @@ export function Beans() {
   const active = (filter !== usual ? 1 : 0) + (roaster ? 1 : 0) + (sort !== 'recent' ? 1 : 0);
   const ql = q.trim().toLowerCase();
 
-  const header = (
-    <PageHeader
-      title="Beans"
-      icon="bean"
-      action={
-        <button
-          type="button"
-          className="btn primary sm"
-          onClick={() => (view === 'roasters' ? sheets.roaster() : sheets.beanForm())}
-        >
-          <Icon name="plus" size={16} /> {view === 'roasters' ? 'Add roaster' : 'Add a bag'}
-        </button>
-      }
-    />
+  // Adding: a bag, or a roaster on the Roasters view. On phones it sits at the right of the
+  // header row; wider, just right of the Bags/Roasters toggle.
+  const addBtn = (where: 'top' | 'row') => (
+    <button
+      type="button"
+      className={`btn primary sm add-btn add-${where}`}
+      onClick={() => (view === 'roasters' ? sheets.roaster() : sheets.beanForm())}
+    >
+      <Icon name="plus" size={16} /> {view === 'roasters' ? 'Add roaster' : 'Add a bag'}
+    </button>
   );
+  const header = <PageHeader title="Beans" icon="bean" action={addBtn('top')} />;
   const viewSwitch = (
     <div className="viewswitch">
       <SlideToggle
@@ -105,6 +103,7 @@ export function Beans() {
           ],
         ]}
       />
+      {addBtn('row')}
     </div>
   );
 
@@ -136,6 +135,7 @@ export function Beans() {
           <input
             className="in search"
             type="search"
+            aria-label="Search"
             placeholder="Search roasters"
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -173,9 +173,7 @@ export function Beans() {
                   <div className="mid">
                     <div className="t1">{r.name}</div>
                     <div className="t2">
-                      {[r.location, `${beans.length} ${beans.length === 1 ? 'bag' : 'bags'}`]
-                        .filter(Boolean)
-                        .join(' · ')}
+                      {[r.location, plural(beans.length, 'bag')].filter(Boolean).join(' · ')}
                     </div>
                   </div>
                   <RB v={avg != null ? r1(avg) : null} />
@@ -220,6 +218,7 @@ export function Beans() {
         <input
           className="in search"
           type="search"
+          aria-label="Search"
           placeholder="Search beans, origin, notes"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -228,7 +227,7 @@ export function Beans() {
       </div>
       <div className="sub listmeta" style={{ marginBottom: 14 }}>
         {[
-          `${list.length} ${list.length === 1 ? 'bag' : 'bags'}`,
+          plural(list.length, 'bag'),
           cur.label,
           roaster && m.roasters.find((r) => r.id === roaster)?.name,
           sort !== 'recent' && SORTS.find(([k]) => k === sort)?.[1],
@@ -249,8 +248,10 @@ export function Beans() {
               options={FILTERS.map((t) => [
                 t.k,
                 <>
+                  {t.k !== 'all' && <Icon name={STATUS_ICON[t.k as BeanStatus]} size={14} />}
                   {t.name} <span className="n">{m.beans.filter(t.f).length}</span>
                 </>,
+                t.k === 'all' ? undefined : (`st-${t.k}` as `st-${BeanStatus}`),
               ])}
               onChange={(f) => setView({ f })}
             />
@@ -290,7 +291,7 @@ export function Beans() {
       {list.length ? (
         <div className="grid">
           {list.map((b) => (
-            <BeanCard key={b.id} b={b} m={m} />
+            <BeanCard key={b.id} b={b} m={m} showStatus={filter === 'all'} />
           ))}
         </div>
       ) : (
@@ -308,7 +309,7 @@ export function Beans() {
                 style={{ marginTop: 12 }}
                 onClick={() => setView({ f: 'all', q: '', r: '' })}
               >
-                Show all {m.beans.length} {m.beans.length === 1 ? 'bag' : 'bags'}
+                Show all {plural(m.beans.length, 'bag')}
               </button>
             </div>
           )}

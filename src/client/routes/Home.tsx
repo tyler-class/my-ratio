@@ -2,7 +2,7 @@ import { Link } from 'react-router';
 import { STATUSES, type BeanStatus } from '@shared/lookups';
 import { dayKey, dayLabel, daysBetween, inDays, MO, parseDay, WD } from '@shared/logic/dates';
 import { mean } from '@shared/logic/model';
-import { fmtN, r1 } from '@shared/logic/units';
+import { fmtInt, fmtN, plural, r1 } from '@shared/logic/units';
 import { ellipsis, money } from '../lib/format';
 import { useActions, useModel } from '../lib/queries';
 import { BeanCard } from '../components/BeanCard';
@@ -62,7 +62,7 @@ export function Home() {
           <div className="sub" style={{ marginTop: 4 }}>
             {today.length === 0
               ? 'Nothing brewed yet today.'
-              : `${today.length} ${today.length === 1 ? 'brew' : 'brews'} so far today.`}
+              : `${plural(today.length, 'brew')} so far today.`}
           </div>
         </div>
         <div className="acts">
@@ -73,21 +73,21 @@ export function Home() {
       </div>
 
       <div className="stats">
-        <Stat v={week.length} l="Brews, 7 days" d={`${m.brews.length} all time`} />
+        <Stat v={week.length} l="Brews, 7 days" d={`${fmtInt(m.brews.length)} all time`} />
         <Stat
           v={avg30 != null ? fmtN(r1(avg30)) : '–'}
           l="Avg rating, 30d"
-          d={`${r30.length} rated`}
+          d={`${fmtInt(r30.length)} rated`}
         />
         <Stat
-          v={m.runway != null ? `${Math.round(m.runway)} d` : '–'}
+          v={m.runway != null ? `${fmtInt(m.runway)} d` : '–'}
           l="Stock runway"
-          d={`${Math.round(m.stock)} g on hand`}
+          d={`${fmtInt(m.stock)} g on hand`}
         />
         <Stat
           v={cpc != null ? money(cpc, s.currency) : '–'}
-          l="Cost per cup, 30d"
-          d={m.burn ? `${Math.round(m.burn)} g / day` : undefined}
+          l="Cost per brew, 30d"
+          d={m.burn ? `Avg. ${fmtInt(m.burn)} g / day` : undefined}
         />
       </div>
 
@@ -186,7 +186,7 @@ export function Home() {
                       {freezer.length} {freezer.length === 1 ? 'bag' : 'bags'} in the freezer
                     </div>
                     <div className="t2">
-                      {freezer.reduce((a, b) => a + (b.bag_g ?? 0), 0)} g banked
+                      {fmtInt(freezer.reduce((a, b) => a + (b.bag_g ?? 0), 0))} g banked
                     </div>
                   </div>
                 </Link>

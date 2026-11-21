@@ -8,10 +8,10 @@ import { BUY_AGAIN, EXTRACTION, STATUSES, type BeanStatus } from '@shared/lookup
 import { dayKey, dayLabel, daysBetween, parseDay } from '@shared/logic/dates';
 import { grindTable, type BeanView, type Model } from '@shared/logic/model';
 import { restInfo, stretches, type BeanEvent } from '@shared/logic/timeline';
-import { fmtN, r1 } from '@shared/logic/units';
+import { fmtInt, fmtN, plural, r1 } from '@shared/logic/units';
 import type { Settings } from '@shared/types';
 import { currencyAffix, currencySymbol, groupDigits, money, numStr, parseNum } from '../lib/format';
-import { currencyDigits, roundMoney } from '@shared/currency';
+import { roundMoney } from '@shared/currency';
 import { useActions } from '../lib/queries';
 import { STATUS_ICON } from '../lib/statusIcons';
 import { useToast } from '../components/Toast';
@@ -49,7 +49,6 @@ function shortDay(day: string): string {
     ...(d.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}),
   });
 }
-const plural = (n: number, one: string, many = one + 's') => `${n} ${n === 1 ? one : many}`;
 
 export function BeanSheet({ m, s, beanId }: { m: Model; s: Settings; beanId: string }) {
   const b = m.beanMap.get(beanId);
@@ -88,6 +87,7 @@ export function BeanSheet({ m, s, beanId }: { m: Model; s: Settings; beanId: str
 
   return (
     <Sheet
+      full
       title={b.name}
       sub={<BeanSub b={b} m={m} />}
       onClose={sheets.close}
@@ -95,9 +95,8 @@ export function BeanSheet({ m, s, beanId }: { m: Model; s: Settings; beanId: str
         <>
           <ConfirmButton
             className="left"
-            confirm={
-              b.brews.length ? `Delete with ${b.brews.length} brews?` : 'Tap again to delete'
-            }
+            ask={`Delete ${b.name}?`}
+            detail={b.brews.length ? `Its ${plural(b.brews.length, 'brew')} go too.` : undefined}
             onConfirm={() => {
               const undo = actions.beans.removeLater(b.id);
               sheets.close();
@@ -116,13 +115,32 @@ export function BeanSheet({ m, s, beanId }: { m: Model; s: Settings; beanId: str
         </>
       }
     >
-      <StatusPath
-        label="Status"
-        value={b.status}
-        options={statusOpts}
-        onChange={setStatus}
-        art={(v, blob) => <StatusArt status={v} blob={blob} />}
-      />
+      <div className="bv-status">
+        <StatusPath
+          label="Status"
+          value={b.status}
+          options={statusOpts}
+          onChange={setStatus}
+          art={(v, blob) => <StatusArt status={v} blob={blob} />}
+        />
+        {/* While drinking: a thin line under the step, filling as the bag is brewed through.
+            It sits in the gap below the steps, so it never changes the height. */}
+        {b.status === 'drinking' && b.bag_g ? (
+          <div
+            className="bv-used"
+            role="progressbar"
+            aria-label="Brewed so far"
+            aria-valuemin={0}
+            aria-valuemax={b.bag_g}
+            aria-valuenow={Math.min(b.bag_g, Math.round(b.used))}
+            style={{
+              left: `${((statusOpts.findIndex(([k]) => k === 'drinking') + 0.5) / statusOpts.length) * 100}%`,
+            }}
+          >
+            <i style={{ width: `${Math.min(100, (b.used / b.bag_g) * 100)}%` }} />
+          </div>
+        ) : null}
+      </div>
       {b.status === 'resting' && <RestCard b={b} />}
       {b.status === 'finished' && (
         <div className="buy-again">
@@ -213,7 +231,6 @@ function RestCard({ b }: { b: BeanView }) {
           inputMode="numeric"
           autoFocus
           value={days}
-          placeholder="None"
           style={{ maxWidth: 120 }}
           onChange={(e) => setDays(e.target.value.replace(/[^\d]/g, ''))}
           onKeyDown={(e) => e.key === 'Enter' && void save()}
@@ -288,6 +305,19 @@ function RestCard({ b }: { b: BeanView }) {
       </div>
     </div>
   );
+}
+
+/**
+ * How many days the bag has rested so far, read-only: the same clock as the rest card (from the
+ * roast date, less freezer days; it stops at the first brew).
+ */
+function RestedDays({ b }: { b: BeanView }) {
+  const today = dayKey(new Date());
+  const first = b.brews.length ? dayKey(b.brews.at(-1)!.date) : null;
+  const r = restInfo(b, b.events, today, first);
+  if (!r) return <Field1 label="Rested days" value="—" unset />;
+  const sub = r.frozen ? `Less ${plural(r.frozen, 'day')} frozen` : undefined;
+  return <Field1 label="Rested days" value={plural(r.rested, 'day')} sub={sub} />;
 }
 
 /** How the rest clock counted: every day out of the freezer. */
@@ -414,7 +444,6 @@ function InlineText({
       className="bv-in multi"
       autoFocus
       value={v}
-      placeholder={placeholder}
       onChange={(e) => setV(e.target.value)}
       onKeyDown={keys}
       onBlur={save}
@@ -426,7 +455,6 @@ function InlineText({
         className="bv-in"
         autoFocus
         value={v}
-        placeholder={placeholder}
         inputMode={numeric ? 'decimal' : undefined}
         size={Math.max(2, (v || placeholder || '').length + 1)}
         onChange={(e) => setV(e.target.value)}
@@ -446,7 +474,14 @@ function Overview({ b, m, s }: { b: BeanView; m: Model; s: Settings }) {
   const o = useBeanOptions(m);
   const [notes, setNotes] = useState(b.notes ?? '');
   const now = new Date();
-  const brewsLeft = b.remaining != null ? Math.floor(b.remaining / m.dose7d) : null;
+  // Brews left: what's in the bag over the dose you use for it (its last few brews), else your
+  // usual dose lately.
+  const ownDoses = b.brews
+    .slice(0, 5)
+    .map((x) => x.dose_g)
+    .filter((d): d is number => !!d);
+  const dose = ownDoses.length ? ownDoses.reduce((t, d) => t + d, 0) / ownDoses.length : m.dose7d;
+  const brewsLeft = b.remaining != null ? Math.floor(b.remaining / dose) : null;
   const save = (body: Record<string, unknown>) => actions.beans.update(b.id, body);
   const text = (
     key: keyof BeanView & string,
@@ -484,7 +519,6 @@ function Overview({ b, m, s }: { b: BeanView; m: Model; s: Settings }) {
           {...show(b.tasting_notes)}
           editor={text('tasting_notes', {
             multiline: true,
-            placeholder: 'Cassis, cantaloupe, jammy',
           })}
         />
         <Field1
@@ -504,8 +538,8 @@ function Overview({ b, m, s }: { b: BeanView; m: Model; s: Settings }) {
           label="Remaining"
           value={
             b.remaining != null
-              ? `${Math.round(b.remaining)} g of ${b.bag_g} g`
-              : `${Math.round(b.used)} g used`
+              ? `${fmtInt(b.remaining)} g of ${fmtN(b.bag_g)} g`
+              : `${fmtInt(b.used)} g used`
           }
           sub={
             b.remaining != null && brewsLeft != null
@@ -521,7 +555,6 @@ function Overview({ b, m, s }: { b: BeanView; m: Model; s: Settings }) {
               numeric
               suffix="g"
               value={numStr(b.bag_g)}
-              placeholder="250"
               done={close}
               onSave={(v) => save({ bag_g: parseNum(v) })}
             />
@@ -532,7 +565,7 @@ function Overview({ b, m, s }: { b: BeanView; m: Model; s: Settings }) {
           {...(b.cost != null
             ? {
                 value: money(b.cost, s.currency),
-                sub: b.perG ? `${money(b.perG * m.avgDose, s.currency)} a cup` : undefined,
+                sub: b.perG ? `${money(b.perG, s.currency)} a gram` : undefined,
               }
             : { value: '—', unset: true })}
           editor={(close) => (
@@ -540,7 +573,6 @@ function Overview({ b, m, s }: { b: BeanView; m: Model; s: Settings }) {
               numeric
               {...currencyAffix(s.currency)}
               value={b.cost != null ? String(b.cost) : ''}
-              placeholder={currencyDigits(s.currency) ? '22.00' : '3000'}
               done={close}
               onSave={(v) =>
                 save({
@@ -579,7 +611,6 @@ function Overview({ b, m, s }: { b: BeanView; m: Model; s: Settings }) {
               numeric
               suffix="days"
               value={b.rest_days != null ? String(b.rest_days) : ''}
-              placeholder="0"
               done={close}
               onSave={(v) => {
                 const n = parseNum(v);
@@ -590,6 +621,7 @@ function Overview({ b, m, s }: { b: BeanView; m: Model; s: Settings }) {
             />
           )}
         />
+        <RestedDays b={b} />
       </section>
 
       <section className="form-sec bv-card">
@@ -619,7 +651,6 @@ function Overview({ b, m, s }: { b: BeanView; m: Model; s: Settings }) {
               numeric
               suffix="MASL"
               value={altitude ?? ''}
-              placeholder="1900"
               done={close}
               onSave={(v) => save({ altitude: v.trim() })}
             />
@@ -718,7 +749,6 @@ function RoasterPick({ b, m, done }: { b: BeanView; m: Model; done: () => void }
     return (
       <InlineText
         value=""
-        placeholder="Roaster name"
         done={done}
         onSave={async (name) => {
           if (!name.trim()) return;
@@ -807,7 +837,7 @@ function Timeline({ b }: { b: BeanView }) {
             return (
               <li className="tl-ev roast" key="roast">
                 <span className="tl-dot">
-                  <Icon name="flame" size={15} />
+                  <Icon name="flame" size={19} />
                 </span>
                 <div className="tl-b">
                   <div className="tl-t">
@@ -827,7 +857,7 @@ function Timeline({ b }: { b: BeanView }) {
             return (
               <li className="tl-ev brew" key="brew">
                 <span className="tl-dot">
-                  <Icon name="dripper" size={15} />
+                  <Icon name="dripper" size={19} />
                 </span>
                 <div className="tl-b">
                   <div className="tl-t">
@@ -845,7 +875,7 @@ function Timeline({ b }: { b: BeanView }) {
           return (
             <li className={`tl-ev s-${it.e.status}`} key={it.e.id}>
               <span className="tl-dot">
-                <Icon name={STATUS_ICON[it.e.status]} size={15} />
+                <Icon name={STATUS_ICON[it.e.status]} size={19} />
               </span>
               <div className="tl-b">
                 <div className="tl-t">
@@ -947,8 +977,8 @@ function DialIn({ b, s }: { b: BeanView; s: Settings }) {
                     <span> · #{x.num}</span>
                   </div>
                   <div className="t2">
-                    {fmtN(x.dose_g)} g → {x.water_ml != null ? Math.round(x.water_ml) : '–'} mL ·
-                    grind {grindLabel(x, s.grind_scales) ?? '–'}
+                    {fmtN(x.dose_g)} g → {x.water_ml != null ? fmtInt(x.water_ml) : '–'} mL · grind{' '}
+                    {grindLabel(x, s.grind_scales) ?? '–'}
                     {x.extraction
                       ? ' · ' + EXTRACTION.find((e) => e.key === x.extraction)?.label
                       : ''}

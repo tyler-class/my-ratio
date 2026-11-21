@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { STATUSES, type BeanStatus } from '@shared/lookups';
-import type { Model } from '@shared/logic/model';
+import type { BeanView, Model } from '@shared/logic/model';
+import { money, money0 } from '../lib/format';
+import { Icon } from '../components/Icon';
 import type { Settings } from '@shared/types';
-import { r1 } from '@shared/logic/units';
+import { fmtInt, fmtN, plural, r1 } from '@shared/logic/units';
 import { useActions } from '../lib/queries';
 import { useToast } from '../components/Toast';
 import { Photos } from '../components/Photos';
@@ -13,6 +15,7 @@ import {
   NotesField,
   RB,
   Sheet,
+  Stat,
   StatusPath,
 } from '../components/ui';
 import { STATUS_ICON } from '../lib/statusIcons';
@@ -97,7 +100,10 @@ export function BeanForm({ m, s, beanId }: { m: Model; s: Settings; beanId?: str
   );
 }
 
-export function RoasterSheet({ m, roasterId }: { m: Model; roasterId?: string }) {
+/**
+ * A roaster: its details (edited here), what your bags from it add up to, and the bags.
+ */
+export function RoasterSheet({ m, s, roasterId }: { m: Model; s: Settings; roasterId?: string }) {
   const sheets = useSheets();
   const actions = useActions();
   const toast = useToast();
@@ -110,7 +116,11 @@ export function RoasterSheet({ m, roasterId }: { m: Model; roasterId?: string })
   });
   const [busy, setBusy] = useState(false);
   const set = (p: Partial<typeof f>) => setF((x) => ({ ...x, ...p }));
-  const beans = r ? m.beans.filter((b) => b.roaster_id === r.id) : [];
+  const beans = r
+    ? m.beans
+        .filter((b) => b.roaster_id === r.id)
+        .sort((a, b) => b.created.getTime() - a.created.getTime())
+    : [];
   const href = f.website && !/^https?:\/\//.test(f.website) ? `https://${f.website}` : f.website;
 
   const save = async () => {
@@ -134,7 +144,7 @@ export function RoasterSheet({ m, roasterId }: { m: Model; roasterId?: string })
           {r && (
             <ConfirmButton
               className="left"
-              confirm="Tap again to delete"
+              ask={`Delete ${r.name}?`}
               onConfirm={() => {
                 const undo = actions.roasters.removeLater(r.id);
                 sheets.close();
@@ -153,64 +163,99 @@ export function RoasterSheet({ m, roasterId }: { m: Model; roasterId?: string })
         </>
       }
     >
-      {r && (
-        <Field label="Logo">
-          <Photos owner="roasters" ownerId={r.id} images={r.images} single />
+      <FormSection icon="store" title="Details">
+        {r && (
+          <Field label="Logo">
+            <Photos owner="roasters" ownerId={r.id} images={r.images} single />
+          </Field>
+        )}
+        <Field label="Name">
+          <input className="in" value={f.name} onChange={(e) => set({ name: e.target.value })} />
         </Field>
-      )}
-      <Field label="Name">
-        <input className="in" value={f.name} onChange={(e) => set({ name: e.target.value })} />
-      </Field>
-      <div className="two fg">
-        <div>
-          <label className="lbl">Location</label>
-          <input
-            className="in"
-            value={f.location}
-            placeholder="Durham, NC"
-            onChange={(e) => set({ location: e.target.value })}
-          />
+        <div className="two fg">
+          <div>
+            <label className="lbl">Location</label>
+            <input
+              className="in"
+              value={f.location}
+              onChange={(e) => set({ location: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="lbl">Website</label>
+            <input
+              className="in"
+              value={f.website}
+              inputMode="url"
+              onChange={(e) => set({ website: e.target.value })}
+            />
+            {r && f.website && (
+              <p className="sub" style={{ margin: '8px 0 0' }}>
+                <a href={href} target="_blank" rel="noreferrer">
+                  Open website
+                </a>
+              </p>
+            )}
+          </div>
         </div>
-        <div>
-          <label className="lbl">Website</label>
-          <input
-            className="in"
-            value={f.website}
-            inputMode="url"
-            placeholder="example.coffee"
-            onChange={(e) => set({ website: e.target.value })}
-          />
-          {r && f.website && (
-            <p className="sub" style={{ margin: '8px 0 0' }}>
-              <a href={href} target="_blank" rel="noreferrer">
-                Open website
-              </a>
-            </p>
-          )}
-        </div>
-      </div>
-      <Field label="Notes">
-        <NotesField value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
-      </Field>
-      {beans.length > 0 && (
-        <Field label={`Bags from ${r!.name} (${beans.length})`}>
-          <div className="card flat" style={{ padding: '2px 12px' }}>
+        <Field label="Notes">
+          <NotesField value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
+        </Field>
+      </FormSection>
+      {r && beans.length > 0 && <RoasterInsights beans={beans} cur={s.currency} />}
+      {r && beans.length > 0 && (
+        <FormSection icon="bag" title={`Bags (${fmtInt(beans.length)})`}>
+          <div className="rs-bags">
             {beans.map((b) => (
-              <div className="ri" key={b.id}>
-                <button type="button" className="rm" onClick={() => sheets.bean(b.id)}>
-                  <RB v={b.avg != null ? r1(b.avg) : null} />
-                  <div className="mid">
-                    <div className="t1">{b.name}</div>
-                    <div className="t2">
-                      {STATUSES.find((x) => x.key === b.status)?.label} · {b.brews.length} brews
-                    </div>
-                  </div>
-                </button>
-              </div>
+              <button key={b.id} type="button" className="rs-bag" onClick={() => sheets.bean(b.id)}>
+                <RB v={b.avg != null ? r1(b.avg) : null} />
+                <span className="rs-bag-t">
+                  <span className="t1">{b.name}</span>
+                  <span className="t2">{plural(b.brews.length, 'brew')}</span>
+                </span>
+                <span className={`tag st-pill s-${b.status}`}>
+                  <Icon name={STATUS_ICON[b.status]} size={13} />
+                  {STATUSES.find((x) => x.key === b.status)?.label}
+                </span>
+              </button>
             ))}
           </div>
-        </Field>
+        </FormSection>
       )}
     </Sheet>
+  );
+}
+
+/**
+ * What your bags from a roaster add up to, as tiles: average rating (and how many rated brews it
+ * rests on), bags bought, spend and grams and price per 100 g.
+ * A tile with nothing to show (no prices logged, nothing rated) is left out.
+ */
+function RoasterInsights({ beans, cur }: { beans: BeanView[]; cur: string }) {
+  const rated = beans.flatMap((b) => b.rated);
+  const avg = rated.length ? rated.reduce((t, x) => t + x.rating!, 0) / rated.length : null;
+  const priced = beans.filter((b) => b.cost);
+  const spend = priced.reduce((t, b) => t + b.cost!, 0);
+  const pricedGrams = priced.reduce((t, b) => t + (b.bag_g ?? 0), 0);
+  const grams = beans.reduce((t, b) => t + (b.bag_g ?? 0), 0);
+  return (
+    <FormSection icon="hash" title="Metrics">
+      <div className="stats rs-stats">
+        {avg != null && (
+          <Stat v={fmtN(r1(avg))} l="Avg rating" d={`${plural(rated.length, 'rated brew')}`} />
+        )}
+        <Stat
+          v={fmtInt(beans.length)}
+          l={beans.length === 1 ? 'Bag bought' : 'Bags bought'}
+          d={grams ? `${fmtInt(grams)} g in all` : undefined}
+        />
+        {spend > 0 && (
+          <Stat v={money0(spend, cur)} l="Spent" d={`across ${plural(priced.length, 'bag')}`} />
+        )}
+        {spend > 0 && pricedGrams > 0 && (
+          <Stat v={money((spend / pricedGrams) * 100, cur)} l="Per 100 g" d="on average" />
+        )}
+      </div>
+    </FormSection>
   );
 }

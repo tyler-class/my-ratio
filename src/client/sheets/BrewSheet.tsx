@@ -12,7 +12,8 @@ import {
 } from '@shared/grind';
 import { brewedAt, dayLabel, sinceLabel, toLocalInput } from '@shared/logic/dates';
 import type { BrewView, Model } from '@shared/logic/model';
-import { fmtN, r1, tempIn, tempOut } from '@shared/logic/units';
+import { defaultBean, startFor, type BrewStart } from '@shared/logic/brewStart';
+import { fmtInt, fmtN, r1, tempIn, tempOut } from '@shared/logic/units';
 import type { Extraction, Strength } from '@shared/lookups';
 import type { Settings } from '@shared/types';
 import { numStr, parseNum } from '../lib/format';
@@ -25,7 +26,6 @@ import {
   ConfirmButton,
   Field,
   NotesField,
-  RB,
   Select,
   Sheet,
   SlideToggle,
@@ -53,40 +53,29 @@ export const rateFrom = (b?: BrewView | null): RateValues => ({
   next_time: b?.next_time ?? '',
 });
 
+/** Ratings are whole numbers, 1 to 10. */
+const SCALE = Array.from({ length: 10 }, (_, i) => String(i + 1));
+
 export function RateFields({ v, set }: { v: RateValues; set: (p: Partial<RateValues>) => void }) {
-  const nudge = (d: number) =>
-    set({ rating: Math.max(0, Math.min(10, Math.round(((v.rating ?? 7) + d) * 2) / 2)) });
+  // An older rating with a half (or 0) shows on the nearest number; it's only rewritten when a
+  // number is tapped.
+  const shown = v.rating == null ? null : String(Math.max(1, Math.min(10, Math.round(v.rating))));
   return (
     <div>
       <Field label="Rating">
-        <div className="flexrow" style={{ gap: 14 }}>
-          <RB v={v.rating} big />
-          <div className="step">
-            <button type="button" aria-label="Lower" onClick={() => nudge(-0.5)}>
-              −
-            </button>
-            <button type="button" aria-label="Higher" onClick={() => nudge(0.5)}>
-              +
-            </button>
-          </div>
-          <div className="seg">
-            {[5, 6, 7, 8, 9, 10].map((n) => (
-              <button
-                key={n}
-                type="button"
-                className="chip sm"
-                aria-pressed={v.rating === n}
-                onClick={() => set({ rating: v.rating === n ? null : n })}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-        </div>
+        <SlideToggle
+          label="Rating"
+          className="rate-scale"
+          value={shown}
+          options={SCALE.map((n) => [n, n] as const)}
+          // Tap the chosen number again to clear it.
+          onChange={(k) => set({ rating: k && Number(k) !== v.rating ? Number(k) : null })}
+        />
       </Field>
       <Field label="Extraction">
         <SlideToggle
           label="Extraction"
+          className="on-white"
           value={v.extraction}
           allowClear
           options={EXTRACTION.map((e) => [e.key, e.label, e.tone] as const)}
@@ -96,6 +85,7 @@ export function RateFields({ v, set }: { v: RateValues; set: (p: Partial<RateVal
       <Field label="Strength">
         <SlideToggle
           label="Strength"
+          className="on-white"
           value={v.strength}
           allowClear
           options={STRENGTH.map((e) => [e.key, e.label, e.tone] as const)}
@@ -182,9 +172,8 @@ export function RateSheet({ m, s, brewId }: { m: Model; s: Settings; brewId: str
     >
       <div className="callout" style={{ marginBottom: 18 }}>
         <b>Recipe</b>
-        {fmtN(b.dose_g)} g → {b.water_ml != null ? Math.round(b.water_ml) : '–'} mL ·{' '}
-        {b.grinder ?? ''} {grindLabel(b, s.grind_scales) ?? '–'} ·{' '}
-        {fmtN(tempOut(b.water_temp_c, s.temp_unit))}°
+        {fmtN(b.dose_g)} g → {b.water_ml != null ? fmtInt(b.water_ml) : '–'} mL · {b.grinder ?? ''}{' '}
+        {grindLabel(b, s.grind_scales) ?? '–'} · {fmtN(tempOut(b.water_temp_c, s.temp_unit))}°
         {b.recipe_notes && <div className="sub">{b.recipe_notes}</div>}
       </div>
       <RateFields v={v} set={(p) => setV((x) => ({ ...x, ...p }))} />
@@ -223,18 +212,21 @@ function recipeFrom(br: BrewView | null, s: Settings): Recipe {
   };
 }
 
-/** A fresh recipe for a bean with no brews yet: the method and grinder carried over. */
-function freshFor(from: Recipe, s: Settings): Recipe {
-  const dose = parseNum(from.dose) ?? 20;
-  return {
-    ...from,
-    grind: '',
-    notes: '',
-    temp: defaultTemp(s),
-    ratio: DEFAULT_RATIO,
-    water: String(r1(dose * Number(DEFAULT_RATIO))),
-  };
-}
+/** Every recipe field blank, to fill in: a bag never brewed, or no bag chosen yet. */
+const BLANK: Recipe = {
+  method: '',
+  grinder: '',
+  grind: '',
+  dose: '',
+  water: '',
+  temp: '',
+  notes: '',
+  ratio: '',
+};
+
+/** A new brew's recipe for a bag (see startFor): its best or last brew, else blank. */
+const recipeForStart = (st: BrewStart, s: Settings): Recipe =>
+  st.brew ? recipeFrom(st.brew, s) : BLANK;
 
 /** Log a new brew (mode log) or edit any field of an existing one (mode edit). */
 export function BrewSheet({
@@ -262,18 +254,18 @@ export function BrewSheet({
         lock: false,
       };
     }
-    let br: BrewView | null = prefill?.fromBrewId
-      ? (m.brewMap.get(prefill.fromBrewId) ?? null)
-      : null;
-    const beanId = prefill?.beanId ?? br?.bean_id ?? m.brews[0]?.bean_id ?? '';
-    if (!br && beanId) br = m.beanMap.get(beanId)?.last ?? null;
-    if (!br) br = m.brews[0] ?? null;
-    let rec = recipeFrom(br, s);
-    // Ratio, temperature and grind come from this bean's last brew; a bean never brewed starts
-    // from the defaults.
-    if (br && br.bean_id !== beanId) rec = freshFor(rec, s);
-    if (!rec.water)
-      rec.water = String(r1((parseNum(rec.dose) ?? 20) * (parseNum(rec.ratio) ?? 16.67)));
+    // Brew again (Recipe book): that recipe, as it was.
+    const again = prefill?.fromBrewId ? (m.brewMap.get(prefill.fromBrewId) ?? null) : null;
+    const beanId = prefill?.beanId ?? again?.bean_id ?? defaultBean(m)?.id ?? '';
+    const bn = beanId ? m.beanMap.get(beanId) : undefined;
+    let rec: Recipe;
+    if (again) rec = recipeFrom(again, s);
+    else if (bn) rec = recipeForStart(startFor(bn), s);
+    // No bag yet (you choose): blank until you pick one.
+    else rec = BLANK;
+    // Water follows from dose and ratio when both are there (a blank recipe stays blank).
+    if (!rec.water && parseNum(rec.dose) && parseNum(rec.ratio))
+      rec.water = String(r1(parseNum(rec.dose)! * parseNum(rec.ratio)!));
     // When it was brewed: now, as the sheet opens; change it for one brewed earlier.
     return { beanId, ...rec, when: toLocalInput(new Date()), lock: true };
   });
@@ -282,7 +274,15 @@ export function BrewSheet({
   const set = (p: Partial<typeof f>) => setF((x) => ({ ...x, ...p }));
 
   const bean = f.beanId ? (m.beanMap.get(f.beanId) ?? null) : null;
-  const last = !editing && bean ? bean.last : null;
+  // What a new brew started from (not for an edit, or Brew again's chosen recipe). The other
+  // choice (best or last) is one tap away when they differ.
+  const [startOver, setStartOver] = useState<BrewStart | null>(null);
+  const start = !editing && !prefill?.fromBrewId && bean ? (startOver ?? startFor(bean)) : null;
+  const switchStart = (st: BrewStart) => {
+    setStartOver(st);
+    setF((x) => ({ ...x, ...recipeForStart(st, s) }));
+  };
+  const last = bean?.last ?? null;
   const best = bean?.best ?? null;
   const doseN = parseNum(f.dose);
   const waterN = parseNum(f.water);
@@ -291,9 +291,14 @@ export function BrewSheet({
 
   const pickBean = (id: string) => {
     const nb = m.beanMap.get(id);
-    if (!editing && nb?.last) setF((x) => ({ ...x, beanId: id, ...recipeFrom(nb.last, s) }));
-    else if (!editing) setF((x) => ({ ...x, beanId: id, ...freshFor(x, s) }));
-    else set({ beanId: id });
+    if (!editing && nb) {
+      setStartOver(null);
+      setF((x) => ({
+        ...x,
+        beanId: id,
+        ...recipeForStart(startFor(nb), s),
+      }));
+    } else set({ beanId: id });
   };
   // Dose and water: locked, one follows the other at the ratio; free, the ratio follows them.
   const onDose = (val: string) => {
@@ -324,9 +329,12 @@ export function BrewSheet({
   // A different grinder reads a different dial: its old setting means nothing there.
   const pickGrinder = (v: string) => set({ grinder: v, ...(v !== f.grinder ? { grind: '' } : {}) });
   // Choices from Settings, plus this brew's own if it isn't one of them any more.
-  const withCurrent = (list: string[], v: string) => (v && !list.includes(v) ? [...list, v] : list);
-  const methods = byName(withCurrent(s.methods, f.method));
-  const grinders = byName(withCurrent(s.grinders, f.grinder));
+  // The methods and grinders set up in Settings, A to Z. A brew's own value that's no longer
+  // there sits alone at the top, chosen, until something from the list is picked.
+  const pickList = (list: string[], v: string) => [
+    ...(v && !list.includes(v) ? [{ options: [{ value: v, label: v }] }] : []),
+    { options: byName(list).map((x) => ({ value: x, label: x })) },
+  ];
   const [whenDay, whenTime] = f.when.split('T') as [string, string];
   const rated =
     rv.rating != null || !!rv.extraction || !!rv.strength || !!rv.tasting_notes || !!rv.next_time;
@@ -377,7 +385,7 @@ export function BrewSheet({
           {editing && (
             <ConfirmButton
               className="left"
-              confirm="Tap again to delete"
+              ask={`Delete Brew #${editing.num}?`}
               onConfirm={() => {
                 const undo = actions.brews.removeLater(editing.id);
                 sheets.close();
@@ -419,7 +427,6 @@ export function BrewSheet({
           <Select
             value={f.beanId}
             onChange={pickBean}
-            placeholder="Choose a bean"
             groups={groups.map((g) => ({
               label: g.st.label,
               badge: (
@@ -449,40 +456,51 @@ export function BrewSheet({
           )}
         </Field>
 
-        {last && (
-          <div className="callout" style={{ marginBottom: 18 }}>
-            <b>Last time · {sinceLabel(last.date, now)}</b>
-            {fmtN(last.dose_g)} g → {last.water_ml != null ? Math.round(last.water_ml) : '–'} mL ·
-            grind {grindLabel(last, s.grind_scales) ?? '–'}
-            {last.rating != null ? ` · rated ${fmtN(last.rating)}` : ''}
-            {last.extraction
-              ? ` · ${EXTRACTION.find((e) => e.key === last.extraction)?.label}`
-              : ''}
-            {last.next_time && (
-              <div style={{ marginTop: 4, fontWeight: 650 }}>{last.next_time}</div>
-            )}
-            {best && best.id !== last.id && (
-              <div style={{ marginTop: 8 }}>
-                <button
-                  type="button"
-                  className="btn sm"
-                  onClick={() => setF((x) => ({ ...x, ...recipeFrom(best, s) }))}
-                >
-                  Use best recipe ({fmtN(best.rating)}): grind{' '}
-                  {grindLabel(best, s.grind_scales) ?? '–'}, 1:
-                  {best.ratio ? best.ratio.toFixed(1) : '?'}
-                </button>
+        {start && start.why !== 'fresh' && (
+          // One panel saying what the form started from, the other choice a tap away, and the
+          // last brew's "next time" (dial-in advice worth seeing before brewing).
+          <div className="callout start-from" style={{ marginBottom: 18 }}>
+            <b>
+              {start.why === 'best'
+                ? `Starting from your best brew · rated ${fmtN(start.brew!.rating)} · ${sinceLabel(start.brew!.date, now)}`
+                : `Starting from your last brew · ${sinceLabel(start.brew!.date, now)}`}
+            </b>
+            <>
+              {fmtN(start.brew!.dose_g)} g →{' '}
+              {start.brew!.water_ml != null ? fmtInt(start.brew!.water_ml) : '–'} mL · grind{' '}
+              {grindLabel(start.brew!, s.grind_scales) ?? '–'}
+            </>
+            {last?.next_time && (
+              <div className="start-next">
+                <span>Next time:</span> {last.next_time}
               </div>
+            )}
+            {start.why === 'best' && last && last.id !== start.brew!.id && (
+              <button
+                type="button"
+                className="link start-switch"
+                onClick={() => switchStart({ brew: last, why: 'last' })}
+              >
+                Use last brew instead
+              </button>
+            )}
+            {start.why === 'last' && best && best.id !== start.brew!.id && (
+              <button
+                type="button"
+                className="link start-switch"
+                onClick={() => switchStart({ brew: best, why: 'best' })}
+              >
+                Use best brew instead (rated {fmtN(best.rating)})
+              </button>
             )}
           </div>
         )}
 
         <Field label="Method">
-          {methods.length ? (
-            <SlideToggle
-              label="Method"
+          {s.methods.length ? (
+            <Select
               value={f.method}
-              options={methods.map((v) => [v, v] as const)}
+              groups={pickList(s.methods, f.method)}
               onChange={(v) => set({ method: v })}
             />
           ) : (
@@ -490,20 +508,14 @@ export function BrewSheet({
           )}
         </Field>
         <Field label="Grinder">
-          {grinders.length ? (
-            <SlideToggle
-              label="Grinder"
+          {s.grinders.length ? (
+            <Select
               value={f.grinder}
-              options={grinders.map((v) => [v, v] as const)}
+              groups={pickList(s.grinders, f.grinder)}
               onChange={pickGrinder}
             />
           ) : (
-            <ChoiceInput
-              options={[]}
-              value={f.grinder}
-              placeholder="Grinder name"
-              onChange={pickGrinder}
-            />
+            <ChoiceInput options={[]} value={f.grinder} onChange={pickGrinder} />
           )}
         </Field>
         <Field label="Grind setting">
@@ -512,7 +524,6 @@ export function BrewSheet({
               className="in grind-text"
               value={f.grind}
               maxLength={40}
-              placeholder="As you write it, like 1.3.2"
               onChange={(e) => set({ grind: e.target.value })}
             />
           ) : (
@@ -523,14 +534,13 @@ export function BrewSheet({
                 disabled={!steps || !f.grinder || (grindN != null && grindN <= steps.min)}
                 onClick={() => nudgeGrind(-1)}
               >
-                −
+                <Icon name="minus" size={18} />
               </button>
               <input
                 className="in"
                 inputMode={steps?.between ? 'decimal' : 'numeric'}
                 value={f.grind}
                 disabled={!f.grinder}
-                placeholder={f.grinder && steps ? String(middleOf(steps)) : 'Pick a grinder'}
                 onChange={(e) => set({ grind: e.target.value })}
                 // Typed settings land on the nearest one the dial has.
                 onBlur={() =>
@@ -545,7 +555,7 @@ export function BrewSheet({
                 disabled={!steps || !f.grinder || (grindN != null && grindN >= steps.max)}
                 onClick={() => nudgeGrind(1)}
               >
-                +
+                <Icon name="plus" size={18} />
               </button>
             </div>
           )}
@@ -618,11 +628,7 @@ export function BrewSheet({
           </div>
         </Field>
         <Field label="Comments">
-          <NotesField
-            value={f.notes}
-            placeholder="60 g bloom 45 s, pours to 250/400/600, done 3:30"
-            onChange={(e) => set({ notes: e.target.value })}
-          />
+          <NotesField value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
         </Field>
       </FormSection>
       <FormSection icon="star" title="Rating & tasting">
