@@ -342,9 +342,6 @@ export function BrewSheet({
               Delete
             </ConfirmButton>
           )}
-          <button type="button" className="btn ghost" onClick={sheets.close}>
-            Cancel
-          </button>
           <button type="button" className="btn primary" disabled={busy} onClick={save}>
             {busy ? 'Saving…' : editing ? 'Save' : 'Log brew'}
           </button>
@@ -367,7 +364,20 @@ export function BrewSheet({
             />
           </div>
         </Field>
-        <Field label="Bean">
+        <Field
+          label="Bean"
+          action={
+            // Opens the chosen bag's page; nothing to open until one is picked.
+            <button
+              type="button"
+              className="lbl-act"
+              disabled={!f.beanId}
+              onClick={() => f.beanId && sheets.bean(f.beanId)}
+            >
+              Open Bean
+            </button>
+          }
+        >
           <Select
             value={f.beanId}
             onChange={pickBean}

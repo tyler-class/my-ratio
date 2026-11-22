@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { EXTRACTION } from '@shared/lookups';
 import { daysBetween, MO, startOfDay } from '@shared/logic/dates';
 import { mean, streak } from '@shared/logic/model';
-import { fmtInt, fmtN, r1 } from '@shared/logic/units';
+import { fmtInt, fmtN, fmtRatio, r1 } from '@shared/logic/units';
 import { money, money0 } from '../lib/format';
 import { useActions, useModel } from '../lib/queries';
 import { PanelBoard, type PanelDef } from '../components/Panels';
@@ -100,7 +100,7 @@ export function Insights() {
         x: b.ratio!,
         y: b.rating!,
         tone: ex?.tone ?? 'a',
-        title: `${b.beanName} · 1:${b.ratio!.toFixed(1)} · ${fmtN(b.rating)}`,
+        title: `${b.beanName} · ${fmtRatio(b.ratio!)} · ${fmtN(b.rating)}`,
       };
     });
   const bk = new Map<string, number[]>();

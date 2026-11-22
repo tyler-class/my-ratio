@@ -32,8 +32,10 @@ export function SheetProvider({ children }: { children: ReactNode }) {
     let n = 0;
     const show = (next: Open) => {
       const from = current.current;
-      // From a record: come back to it. From anything else (or nothing): a fresh start.
-      if (from && (from.type === 'bean' || from.type === 'roaster')) back.current.push(from);
+      // From a record, or a saved brew (Open Bean from it): come back to it. From anything else
+      // (or nothing): a fresh start.
+      if (from && (from.type === 'bean' || from.type === 'roaster' || from.type === 'edit'))
+        back.current.push(from);
       else if (!from) back.current = [];
       // Going back to a record by hand (a bag's edit form returns to the bag): drop it, and
       // anything after it, from the way back, so closing doesn't show it twice.

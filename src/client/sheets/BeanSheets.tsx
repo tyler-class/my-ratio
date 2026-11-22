@@ -66,9 +66,6 @@ export function BeanForm({ m, s, beanId }: { m: Model; s: Settings; beanId?: str
       onClose={() => (b ? sheets.bean(b.id) : sheets.close())}
       footer={
         <>
-          <button type="button" className="btn ghost" onClick={sheets.close}>
-            Cancel
-          </button>
           <button type="button" className="btn primary" disabled={busy} onClick={save}>
             {busy ? 'Saving…' : b ? 'Save' : 'Add bag'}
           </button>
@@ -154,9 +151,6 @@ export function RoasterSheet({ m, s, roasterId }: { m: Model; s: Settings; roast
               Delete
             </ConfirmButton>
           )}
-          <button type="button" className="btn ghost" onClick={sheets.close}>
-            Cancel
-          </button>
           <button type="button" className="btn primary" disabled={busy} onClick={save}>
             {busy ? 'Saving…' : r ? 'Save' : 'Add roaster'}
           </button>
@@ -234,13 +228,17 @@ export function RoasterSheet({ m, s, roasterId }: { m: Model; s: Settings; roast
 }
 
 /**
- * What your bags from a roaster add up to, as tiles: average rating (and how many rated brews it
- * rests on), bags bought, spend and grams and price per 100 g.
- * A tile with nothing to show (no prices logged, nothing rated) is left out.
+ * What your bags from a roaster add up to, as tiles: average rating (each rated bag's average,
+ * averaged; always shown), bags bought, spend and grams and price per 100 g.
+ * The price tiles are left out when no prices are logged.
  */
 function RoasterInsights({ beans, cur }: { beans: BeanView[]; cur: string }) {
-  const rated = beans.flatMap((b) => b.rated);
-  const avg = rated.length ? rated.reduce((t, x) => t + x.rating!, 0) / rated.length : null;
+  // The roaster's rating: each bag's own average (its rated brews), averaged across the bags that
+  // have one, so a bag brewed often doesn't outweigh the rest.
+  const ratedBags = beans.filter((b) => b.avg != null);
+  const avg = ratedBags.length
+    ? ratedBags.reduce((t, b) => t + b.avg!, 0) / ratedBags.length
+    : null;
   const priced = beans.filter((b) => b.cost);
   const spend = priced.reduce((t, b) => t + b.cost!, 0);
   const pricedGrams = priced.reduce((t, b) => t + (b.bag_g ?? 0), 0);
@@ -248,9 +246,11 @@ function RoasterInsights({ beans, cur }: { beans: BeanView[]; cur: string }) {
   return (
     <FormSection icon="hash" title="Metrics">
       <div className="stats rs-stats">
-        {avg != null && (
-          <Stat v={fmtN(r1(avg))} l="Avg rating" d={`${plural(rated.length, 'rated brew')}`} />
-        )}
+        <Stat
+          v={avg != null ? fmtN(r1(avg)) : '—'}
+          l="Avg rating"
+          d={avg != null ? `across ${plural(ratedBags.length, 'rated bag')}` : 'nothing rated yet'}
+        />
         <Stat
           v={fmtInt(beans.length)}
           l={beans.length === 1 ? 'Bag bought' : 'Bags bought'}

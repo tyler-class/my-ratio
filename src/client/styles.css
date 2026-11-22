@@ -4827,3 +4827,87 @@ button.bv-v.unset {
   font-weight: 500;
   color: var(--ink2);
 }
+
+/* A label with a small text button at the right of its line (Open Bean). */
+.lbl-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 7px;
+}
+.lbl-row > .lbl {
+  margin: 0;
+}
+.lbl-act {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+}
+.lbl-act:hover:not([disabled]) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.lbl-act[disabled] {
+  color: var(--ink3, var(--ink2));
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Phones: the drawer's buttons sit close to the bottom. The home indicator's area overlaps the
+   footer's own padding instead of adding a full band of empty space under it. */
+@media (max-width: 639px) {
+  .sheet {
+    padding-bottom: max(calc(var(--safe-bottom) - 18px), 0px);
+  }
+  .sh-foot {
+    padding-bottom: 10px;
+  }
+}
+
+/* A drawer's Delete: a red outlined pill at the left of its footer, filled red on hover. (No
+   Cancel: the ✕ or a swipe down closes the drawer.) */
+.sh-foot .btn.danger.left {
+  background: var(--surface, #fff);
+  color: var(--bad);
+  border: 1.5px solid var(--bad);
+  box-shadow: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .sh-foot .btn.danger.left:hover {
+    background: var(--bad);
+    color: #fff;
+  }
+}
+/* The drawer's main button (Save, Log brew, Brew this) is its own size at the right, not
+   stretched; Delete sits at the left with the space between them. */
+.sh-foot .btn.primary {
+  flex: none;
+  min-width: 132px;
+  max-width: none;
+  padding-left: 22px;
+  padding-right: 22px;
+}
+/* A day with several brews: a thin line from its date to its last bar (ending in a small tick). */
+.chart .hist-span {
+  fill: none;
+  stroke: var(--ink2);
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
+.chart .hist-dayg.on .hist-span {
+  stroke: var(--ink);
+  opacity: 1;
+}
+.chart .hist-span-dot {
+  fill: var(--ink2);
+}
+.chart .hist-dayg.on .hist-span-dot {
+  fill: var(--ink);
+}

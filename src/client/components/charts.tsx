@@ -383,6 +383,16 @@ const mmdd = (t: number) => {
   return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
 };
 
+/** A round step near `raw`: 1, 2, 2.5 or 5 times a power of ten (whole numbers only if asked). */
+function niceStep(raw: number, whole = false, min = 0): number {
+  const p = 10 ** Math.floor(Math.log10(raw || 1));
+  const f = raw / p;
+  // 2.5 only where a second decimal is allowed (a step of 0.25 would show 1:16.25).
+  let step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 && !min ? 2.5 : f <= 5 ? 5 : 10) * p;
+  if (whole) step = Math.max(1, Math.round(step));
+  return Math.max(step, min);
+}
+
 /**
  * A bag's brews over time, in one chart: each brew a bar as tall as its rating (coloured by it,
  * the number on top), in brew order with every brew's date along the bottom (angled to fit);
@@ -419,6 +429,8 @@ export function BrewHistory({
   const sorted = [...pts].sort((a, b) => a.t - b.t);
   const n = sorted.length;
   // To two decimals, as typed on the brew (1:16.67), not rounded off.
+  // The ratio as every brew row shows it (1:16.67): the chart plots and labels that same number,
+  // so brews at one ratio always sit level, on its line.
   const ratioFmt = fmtRatio;
   const hasGrind = sorted.some((p) => p.grind != null);
   const hasRatio = sorted.some((p) => p.ratio != null);
@@ -449,26 +461,56 @@ export function BrewHistory({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [n, PW]);
 
-  /** A line's own scale, padded so it doesn't sit on the chart's edges. */
-  const scaleOf = (get: (p: HistPt) => number | null, mid: boolean) => {
-    const vals = sorted.map(get).filter((v): v is number => v != null);
+  /**
+   * A line's own scale. Values are taken as shown (to two decimals), so the same setting always
+   * sits at the same height. The axis runs a little past the lowest and highest settings used
+   * (at least `minHalf` either side of a single setting, so the scale reads), on round steps,
+   * with each label once.
+   */
+  const scaleOf = (
+    get: (p: HistPt) => number | null,
+    minHalf: number,
+    /** Ratios: round steps of at least 0.5, and the ratios actually brewed labelled too. */
+    ratio: boolean,
+  ) => {
+    // Values as shown (two decimals), so the same setting always sits at the same height.
+    const q = (v: number | null) => (v == null ? null : Math.round(v * 100) / 100);
+    const vals = sorted.map((p) => q(get(p))).filter((v): v is number => v != null);
     const min = Math.min(...vals),
       max = Math.max(...vals);
-    const pad = (max - min || Math.abs(max) || 1) * 0.2;
-    const lo = min - pad,
-      hi = max + pad;
+    const half = Math.max((max - min) * 0.6, minHalf);
+    const mid = (min + max) / 2;
+    // Whole-number settings (grinder clicks) get whole-number steps.
+    const whole = !ratio && vals.every((v) => Number.isInteger(v));
+    const step = niceStep((half * 2) / 3, whole, ratio ? 0.5 : 0);
+    const lo = Math.floor((mid - half) / step) * step;
+    const hi = Math.ceil((mid + half) / step) * step;
     const y = (v: number) => H - b - ((v - lo) / (hi - lo || 1)) * (H - t - b);
     const path = sorted
-      .map((p, i) => [i, get(p)] as const)
+      .map((p, i) => [i, q(get(p))] as const)
       .filter(([, v]) => v != null)
       .map(([i, v]) => `${cx(i).toFixed(1)},${y(v!).toFixed(1)}`)
       .join(' ');
-    // Lowest and highest settings used (and the middle, where that reads as a value), as labels.
-    const ticks = [...new Set(mid ? [min, (min + max) / 2, max] : [min, max])];
-    return { y, path, ticks };
+    // Round steps (1:16, 1:16.5, 1:17); for ratios, each ratio brewed is labelled as well
+    // (1:16.67), and a round step too close to one to read is left out. Each label once.
+    const used = ratio ? [...new Set(vals)] : [];
+    const steps: number[] = [];
+    for (let k = 0; lo + k * step <= hi + step / 2; k++) steps.push(q(lo + k * step)!);
+    const ticks = [
+      ...used,
+      ...steps.filter((v) => !used.some((u) => Math.abs(y(u) - y(v)) < 16)),
+    ].sort((a, c) => a - c);
+    return { y, path, ticks: [...new Set(ticks)], q };
   };
-  const g = hasGrind ? scaleOf((p) => p.grind, false) : null;
-  const ra = hasRatio ? scaleOf((p) => p.ratio, true) : null;
+  const g = hasGrind ? scaleOf((p) => p.grind, 1, false) : null;
+  const ra = hasRatio ? scaleOf((p) => p.ratio, 0.5, true) : null;
+  // Brews in a row on the same day: one date for the run (its first and last brew).
+  const days: { from: number; to: number }[] = [];
+  sorted.forEach((p, i) => {
+    const last = days[days.length - 1];
+    if (last && dayKey(new Date(sorted[last.to]!.t)) === dayKey(new Date(p.t))) last.to = i;
+    else days.push({ from: i, to: i });
+  });
   const pickedIdx = sorted.findIndex((p) => p.id === sel);
   const picked = pickedIdx >= 0 ? sorted[pickedIdx]! : null;
 
@@ -574,7 +616,7 @@ export function BrewHistory({
                       key={p.id}
                       className={`hist-pt grind${faded?.has(p.id) ? ' hist-faded' : ''}`}
                       cx={cx(i)}
-                      cy={g.y(p.grind)}
+                      cy={g.y(g.q(p.grind)!)}
                       r={i === pickedIdx ? 5 : 3.5}
                     />
                   ),
@@ -590,7 +632,7 @@ export function BrewHistory({
                       key={p.id}
                       className={`hist-pt ratio${faded?.has(p.id) ? ' hist-faded' : ''}`}
                       cx={cx(i)}
-                      cy={ra.y(p.ratio)}
+                      cy={ra.y(ra.q(p.ratio)!)}
                       r={i === pickedIdx ? 5 : 3.5}
                     />
                   ),
@@ -598,18 +640,43 @@ export function BrewHistory({
               </>
             )}
             <line className="ax" x1={0} x2={PW} y1={H - b} y2={H - b} />
-            {/* Every brew's date as MM/DD, straight under its bar. */}
-            {sorted.map((p, i) => (
-              <text
-                key={p.id}
-                className={i === pickedIdx ? 'hist-day on' : 'hist-day'}
-                x={cx(i)}
-                y={H - b + 14}
-                textAnchor="middle"
-              >
-                {mmdd(p.t)}
-              </text>
-            ))}
+            {/* Each day's date (MM/DD) once, under its first brew. When there were more brews that
+                day, a line runs from the date to the day's last bar, with a dot under each, so the date
+                covers them all. */}
+            {days.map((d) => {
+              const on = pickedIdx >= d.from && pickedIdx <= d.to;
+              const y = H - b + 14;
+              return (
+                <g key={d.from} className={on ? 'hist-dayg on' : 'hist-dayg'}>
+                  <text
+                    className={on ? 'hist-day on' : 'hist-day'}
+                    x={cx(d.from)}
+                    y={y}
+                    textAnchor="middle"
+                  >
+                    {mmdd(sorted[d.from]!.t)}
+                  </text>
+                  {d.to > d.from && (
+                    <>
+                      <path
+                        className="hist-span"
+                        d={`M${cx(d.from) + 19},${y - 3.5} H${cx(d.to)}`}
+                      />
+                      {/* A dot on the line under each of the day's other brews; the last ends it. */}
+                      {Array.from({ length: d.to - d.from }, (_, k) => (
+                        <circle
+                          key={k}
+                          className="hist-span-dot"
+                          cx={cx(d.from + k + 1)}
+                          cy={y - 3.5}
+                          r={1.9}
+                        />
+                      ))}
+                    </>
+                  )}
+                </g>
+              );
+            })}
           </svg>
         </div>
         <svg className="chart" width={r} height={H} aria-hidden="true">

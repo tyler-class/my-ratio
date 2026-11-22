@@ -520,14 +520,24 @@ export function Field({
   label,
   children,
   className,
+  action,
 }: {
   label: string;
   children: ReactNode;
   className?: string;
+  /** A small text button at the right of the label's line (e.g. Open Bean). */
+  action?: ReactNode;
 }) {
   return (
     <div className={cx('fg', className)}>
-      <label className="lbl">{label}</label>
+      {action ? (
+        <div className="lbl-row">
+          <label className="lbl">{label}</label>
+          {action}
+        </div>
+      ) : (
+        <label className="lbl">{label}</label>
+      )}
       {children}
     </div>
   );
