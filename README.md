@@ -8,7 +8,7 @@ The payoff is the patterns: which grind settings rate best for this bag, which o
 
 [![Deploy to Cloudflare](docs/deploy-to-cloudflare.svg)](https://deploy.workers.cloudflare.com/?url=https://github.com/tyler-class/ratio)
 
-![Ratio on a laptop and a phone: home with stock runway, and a bag's dial-in chart and recent brews](docs/screenshots/hero.png)
+![Ratio on a laptop and a phone: home with stock runway and the bags on the bar, and a bag's brew history and best combination](docs/screenshots/hero.png)
 
 - **Log a brew in seconds.** Pick the bag and Ratio fills in your last recipe: grind, dose, ratio, temperature. Lock the ratio and the water follows the dose. Rate it now or later.
 - **Dial in.** Each bag shows how every grind setting rated, your best recipe, and last time’s “next time” note.
@@ -19,21 +19,21 @@ The payoff is the patterns: which grind settings rate best for this bag, which o
 - **Built for phones.** Install it to your home screen. It works like an app, and the last-loaded log stays readable offline.
 - **Yours.** It runs on your own Cloudflare account. The free plan is plenty. Your data stays in your database.
 
-**Ask your assistant, typed or out loud.** It logs a brew with the right water for your ratio, finds the grind that has worked best, suggests what to order next, and rates a brew you describe on your phone.
+**Ask your assistant, typed or out loud.** It logs a brew once you’ve confirmed the recipe, works out the water for your ratio, finds the grind that has worked best, suggests what to order next, and rates a brew you describe on your phone.
 
-![An AI assistant connected to Ratio: on a laptop it logs a V60 of the Kiambu AA, finds the best grind for the Guji and suggests what to order; on a phone it lists what's on the bar and rates a dictated brew](docs/screenshots/ai-chat.png)
+![An AI assistant connected to Ratio: on a laptop it reads back a V60 of the El Mirador and logs it once confirmed, finds the best grind for the Guji and suggests what to order; on a phone it lists what's on the bar and rates a dictated brew](docs/screenshots/ai-chat.png)
 
 One deployment is one coffee log.
 
 ## Screenshots
 
-![On a phone: every brew, rating a brew with the Extraction slider, and every bag](docs/screenshots/phones.png)
+![On a phone: every brew, rating a brew from 1 to 10 with its extraction and strength, and the bags you're drinking](docs/screenshots/phones.png)
 
 ### Logging a brew
 
-Pick the bag and the last recipe is filled in, with your best one a tap away. Lock the ratio and the water follows the dose.
+Pick the bag and Ratio starts from your best brew of it, with the last one a tap away. Lock the ratio and the water follows the dose.
 
-![Logging a brew on a phone: last time and the best recipe for the bag, then grind, dose and a locked 1:17 ratio](docs/screenshots/log-a-brew.png)
+![Logging a brew on a phone: starting from the bag's best brew, then grinder, grind, dose and water with a locked 1:17 ratio](docs/screenshots/log-a-brew.png)
 
 ### Brews
 
@@ -45,17 +45,17 @@ Pick the bag and the last recipe is filled in, with your best one a tap away. Lo
 
 ![Beans: every bag with its status, grams left, rating and buy-again verdict](docs/screenshots/beans.png)
 
-![A bag on a phone: average rating, grams used, price and cost per cup, its photo, every brew with it, and the Add a bag form](docs/screenshots/bag.png)
+![A bag on a phone: its status, details, grams left and cost, its brew history chart and best combination, and the Add a bag form](docs/screenshots/bag.png)
 
-![Roasters on a phone: each with its bags and average rating, and a roaster with its logo, details and bags](docs/screenshots/roasters.png)
+![Roasters on a phone: each with its logo, bags and average rating, and a roaster's metrics and bags](docs/screenshots/roasters.png)
 
 ### Insights
 
-![Insights: at a glance, the brewing calendar, brews per week and how you rate](docs/screenshots/insights.png)
+![Insights: at a glance, the coffee calendar, brews per week and how you rate](docs/screenshots/insights.png)
 
-![Insights: the taste explorer by origin, ratio vs rating, and dial-in accuracy by month](docs/screenshots/insights-taste.png)
+![Insights: average rating by origin, ratio vs rating, and dial-in accuracy by month](docs/screenshots/insights-taste.png)
 
-![Insights: top bags, the order again shortlist, spend by roaster and the recipe book](docs/screenshots/insights-more.png)
+![Insights: top bags, the order again shortlist, spend by roaster and best value](docs/screenshots/insights-more.png)
 
 ### Settings
 
