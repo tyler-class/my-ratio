@@ -4911,3 +4911,67 @@ button.bv-v.unset {
 .chart .hist-dayg.on .hist-span-dot {
   fill: var(--ink);
 }
+
+/* Settings → Always-on agent prompts: a row per prompt, opening to its text and Copy prompt. */
+.ao-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ao {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.ao-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ao-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.ao-chev {
+  flex: none;
+  color: var(--ink2);
+  transition: transform 0.15s ease;
+}
+.ao-chev.open {
+  transform: rotate(180deg);
+}
+.ao-body {
+  padding: 0 14px 14px;
+}
+.ao-prompt {
+  max-height: 320px;
+  overflow: auto;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--surface2);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--ink);
+}
+.ao-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}

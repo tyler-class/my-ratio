@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { EXAMPLE_PROMPTS } from '@shared/examples';
+import { ALWAYS_ON_PROMPTS } from '../alwaysOn';
 import { DEFAULT_METHODS } from '@shared/lookups';
 import { GrindScales } from '../components/GrindScales';
 import { byName } from '@shared/grind';
@@ -515,7 +516,69 @@ function ConnectAI() {
         </ul>
         <p className="sub">Claude also lists ready-made Ratio prompts in its + menu.</p>
       </Fold>
+      <AlwaysOn />
     </Section>
+  );
+}
+
+/**
+ * "Always-on agent prompts" (kit layout 5): a fold; each prompt a row that opens to the full text,
+ * what the agent needs connected, and Copy prompt. One open at a time.
+ */
+function AlwaysOn() {
+  const [open, setOpen] = useState<string | null>(null);
+  const toast = useToast();
+  return (
+    <Fold
+      id="settings-always-on"
+      title={CONNECTED_TEXT.alwaysOn}
+      icon="sparkle"
+      className="examples"
+    >
+      <p className="sub" style={{ marginTop: 0 }}>
+        {CONNECTED_TEXT.alwaysOnHint}
+      </p>
+      <div className="ao-list">
+        {ALWAYS_ON_PROMPTS.map((a) => {
+          const on = open === a.id;
+          return (
+            <div key={a.id} className="ao">
+              <button
+                type="button"
+                className="ao-row"
+                aria-expanded={on}
+                onClick={() => setOpen(on ? null : a.id)}
+              >
+                <span className="ao-text">
+                  <strong>{a.title}</strong>
+                  <span className="sub">{a.summary}</span>
+                </span>
+                <Icon name="chevDown" size={14} className={on ? 'ao-chev open' : 'ao-chev'} />
+              </button>
+              {on && (
+                <div className="ao-body">
+                  <pre className="ao-prompt">{a.prompt}</pre>
+                  <div className="ao-foot">
+                    <span className="sub">{CONNECTED_TEXT.needs(a.needs)}</span>
+                    <button
+                      type="button"
+                      className="btn sm primary"
+                      onClick={() =>
+                        void navigator.clipboard
+                          ?.writeText(a.prompt)
+                          .then(() => toast({ text: 'Copied.' }))
+                      }
+                    >
+                      <Icon name="copy" size={14} /> {CONNECTED_TEXT.copyPrompt}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Fold>
   );
 }
 
