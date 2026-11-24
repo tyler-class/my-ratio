@@ -681,6 +681,8 @@ function Updates({
   const isSource = isSourceRepo(repo, UPSTREAM);
   const auto = autoUpdatesInfo('Ratio');
   const status = updateStatus('Ratio', __APP_VERSION__, latest.data, latest.isError);
+  // Set up and already on the latest version: nothing to update, so no Update now.
+  const upToDate = !!latest.data && !status.newer;
   const how = howUpdatesWork('Ratio');
   const shared = whatsShared('Ratio', USAGE_COUNTED, true);
   return (
@@ -743,14 +745,16 @@ function Updates({
         <>
           <div className="flexrow">
             {setUp ? (
-              <a
-                className={status.newer ? 'btn primary' : 'btn'}
-                href={runUrl(repo)}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <Icon name="reset" size={16} /> {UPDATE_TEXT.updateNow}
-              </a>
+              upToDate ? null : (
+                <a
+                  className={status.newer ? 'btn primary' : 'btn'}
+                  href={runUrl(repo)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Icon name="reset" size={16} /> {UPDATE_TEXT.updateNow}
+                </a>
+              )
             ) : (
               <a
                 className="btn primary"
@@ -774,7 +778,8 @@ function Updates({
           <p className="sub" style={{ marginBottom: 0 }}>
             {setUp ? (
               <>
-                {UPDATE_TEXT.updateNowHint}{' '}
+                {!upToDate && UPDATE_TEXT.updateNowHint}
+                {!upToDate && ' '}
                 <a href={workflowFileUrl(repo, __SOURCE_BRANCH__)} target="_blank" rel="noreferrer">
                   {UPDATE_TEXT.updateFile}
                 </a>
