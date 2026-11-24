@@ -4613,6 +4613,18 @@ button.bv-v.unset {
   stroke: var(--blue);
   stroke-dasharray: 5 3;
 }
+/* Guide lines across the chart at each axis label: black for the grind, dashed blue for the
+   ratio (faint, behind the bars and lines). */
+.chart .hist-guide {
+  stroke-width: 1;
+}
+.chart .hist-guide.grind {
+  stroke: color-mix(in srgb, var(--ink) 12%, transparent);
+}
+.chart .hist-guide.ratio {
+  stroke: color-mix(in srgb, var(--blue) 30%, transparent);
+  stroke-dasharray: 4 4;
+}
 .chart .hist-pt {
   fill: var(--surface);
   stroke-width: 2;

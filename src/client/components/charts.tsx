@@ -482,20 +482,24 @@ export function BrewHistory({
     const mid = (min + max) / 2;
     // Whole-number settings (grinder clicks) get whole-number steps.
     const whole = !ratio && vals.every((v) => Number.isInteger(v));
-    const step = niceStep((half * 2) / 3, whole, ratio ? 0.5 : 0);
-    const lo = Math.floor((mid - half) / step) * step;
-    const hi = Math.ceil((mid + half) / step) * step;
-    const y = (v: number) => H - b - ((v - lo) / (hi - lo || 1)) * (H - t - b);
+    const step = ratio ? 1 : niceStep((half * 2) / 3, whole, 0);
+    // Ratios: 1:16 to 1:17, reaching further only to take in a ratio brewed outside it (that
+    // ratio is then the floor or ceiling). They keep a little room from the chart's edges.
+    const lo = ratio ? Math.min(16, min) : Math.floor((mid - half) / step) * step;
+    const hi = ratio ? Math.max(17, max) : Math.ceil((mid + half) / step) * step;
+    const inset = ratio ? 12 : 0;
+    const y = (v: number) => H - b - inset - ((v - lo) / (hi - lo || 1)) * (H - t - b - inset * 2);
     const path = sorted
       .map((p, i) => [i, q(get(p))] as const)
       .filter(([, v]) => v != null)
       .map(([i, v]) => `${cx(i).toFixed(1)},${y(v!).toFixed(1)}`)
       .join(' ');
-    // Round steps (1:16, 1:16.5, 1:17); for ratios, each ratio brewed is labelled as well
+    // Round steps (whole ratios: 1:16, 1:17); for ratios, each ratio brewed is labelled as well
     // (1:16.67), and a round step too close to one to read is left out. Each label once.
     const used = ratio ? [...new Set(vals)] : [];
     const steps: number[] = [];
-    for (let k = 0; lo + k * step <= hi + step / 2; k++) steps.push(q(lo + k * step)!);
+    if (ratio) for (let v = Math.ceil(lo); v <= Math.floor(hi); v++) steps.push(v);
+    else for (let k = 0; lo + k * step <= hi + step / 2; k++) steps.push(q(lo + k * step)!);
     const ticks = [
       ...used,
       ...steps.filter((v) => !used.some((u) => Math.abs(y(u) - y(v)) < 16)),
@@ -568,8 +572,28 @@ export function BrewHistory({
                 rx={8}
               />
             )}
-            <line className="gl" x1={0} x2={PW} y1={ry(10)} y2={ry(10)} />
-            <line className="gl" x1={0} x2={PW} y1={ry(5)} y2={ry(5)} />
+            {/* Guide lines across, one at each label: black for the grind (left), dashed blue
+                for the ratio (right), like their lines. */}
+            {g?.ticks.map((v) => (
+              <line
+                key={`g${v}`}
+                className="hist-guide grind"
+                x1={0}
+                x2={PW}
+                y1={g.y(v)}
+                y2={g.y(v)}
+              />
+            ))}
+            {ra?.ticks.map((v) => (
+              <line
+                key={`r${v}`}
+                className="hist-guide ratio"
+                x1={0}
+                x2={PW}
+                y1={ra.y(v)}
+                y2={ra.y(v)}
+              />
+            ))}
             {/* Ratings: a soft bar to each brew's rating, the number above. */}
             {sorted.map((p, i) => {
               const x = cx(i) - bw / 2;

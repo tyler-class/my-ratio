@@ -863,17 +863,15 @@ const EVENT_TITLE: Record<BeanStatus, string> = {
   finished: 'Finished',
 };
 
-/** The timeline, newest first: four entries, then Show more. */
+/** The timeline, newest first: every entry, every brew among them (the page scrolls). */
 function Timeline({ b }: { b: BeanView }) {
   const actions = useActions();
   const sheets = useSheets();
-  const [all, setAll] = useState(false);
   const today = dayKey(new Date());
   const st = stretches(b.events, today);
-  const firstBrew = b.brews.length ? dayKey(b.brews.at(-1)!.date) : null;
   type Item =
     | { kind: 'event'; e: BeanEvent; prev?: BeanStatus; to: string | null; days: number }
-    | { kind: 'brew'; day: string }
+    | { kind: 'brew'; day: string; brew: BeanView['brews'][number]; first: boolean }
     | { kind: 'roast'; day: string };
   const items: Item[] = st.map((x, i) => ({
     kind: 'event' as const,
@@ -882,21 +880,29 @@ function Timeline({ b }: { b: BeanView }) {
     to: x.to,
     days: x.days,
   }));
-  // The roast day and the first brew go in after the changes up to their day; then newest
-  // first, keeping the order of changes made on the same day.
-  const place = (it: Item & { day: string }) => {
-    const at = items.findIndex((x) => (x.kind === 'event' ? x.e.on_day : x.day) > it.day);
+  // The roast day and each brew go in after the changes up to their day; then newest first,
+  // keeping the order of things on the same day.
+  // `on`: the day it goes in on (its own day, unless said otherwise).
+  const place = (it: Item & { day: string }, on = it.day) => {
+    const at = items.findIndex((x) => (x.kind === 'event' ? x.e.on_day : x.day) > on);
     items.splice(at < 0 ? items.length : at, 0, it);
   };
   if (b.roasted_on) place({ kind: 'roast', day: b.roasted_on });
-  if (firstBrew) place({ kind: 'brew', day: firstBrew });
+  // The first brew moves a bag to drinking (on the brew's day, or after the bag's last change
+  // when the brew is dated before it): the move comes first, then the brews up to it. A move to
+  // drinking made by hand before any brew stays where it is.
+  const opened = b.events.find((e) => e.status === 'drinking')?.on_day;
+  // Oldest brew first, so brews on one day keep their order.
+  [...b.brews].reverse().forEach((brew, i) => {
+    const day = dayKey(brew.date);
+    place({ kind: 'brew', day, brew, first: i === 0 }, opened && day <= opened ? opened : day);
+  });
   items.reverse();
-  const shown = all ? items : items.slice(0, 4);
 
   return (
     <>
       <ol className="tl">
-        {shown.map((it) => {
+        {items.map((it) => {
           if (it.kind === 'roast')
             return (
               <li className="tl-ev roast" key="roast">
@@ -918,15 +924,15 @@ function Timeline({ b }: { b: BeanView }) {
               </li>
             );
           if (it.kind === 'brew') {
-            const fb = b.brews.at(-1)!;
+            const fb = it.brew;
             return (
-              <li className="tl-ev brew" key="brew">
+              <li className={`tl-ev brew${it.first ? '' : ' later'}`} key={fb.id}>
                 <span className="tl-dot">
                   <Icon name="dripper" size={19} />
                 </span>
                 <div className="tl-b">
                   <div className="tl-t">
-                    <b>First brew</b>
+                    <b>{it.first ? 'First brew' : 'Brew'}</b>
                     <span className="tl-day">{shortDay(it.day)}</span>
                   </div>
                   <div className="tl-s">
@@ -979,11 +985,6 @@ function Timeline({ b }: { b: BeanView }) {
           );
         })}
       </ol>
-      {items.length > 4 && (
-        <button type="button" className="tl-more" onClick={() => setAll((x) => !x)}>
-          {all ? 'Hide' : `Show more (${items.length - 4})`}
-        </button>
-      )}
     </>
   );
 }
