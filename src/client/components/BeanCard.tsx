@@ -1,11 +1,11 @@
-import { BUY_AGAIN, statusOf } from '@shared/lookups';
+import { statusOf } from '@shared/lookups';
 import { agoLabel, dayKey, daysBetween, inDays, parseDay } from '@shared/logic/dates';
 import { restInfo } from '@shared/logic/timeline';
 import { fmtInt, plural, r1 } from '@shared/logic/units';
 import type { BeanView, Model } from '@shared/logic/model';
 import { useSheets } from '../sheets/context';
 import { Thumb } from './Photos';
-import { RB, TagRow } from './ui';
+import { RB } from './ui';
 import { Icon } from './Icon';
 import { STATUS_ICON } from '../lib/statusIcons';
 
@@ -26,7 +26,8 @@ export function stockLine(b: BeanView, m: Model, now = new Date()): string {
     case 'ordered':
       return 'On the way';
     default:
-      return `${fmtInt(b.brews.length)} brews${b.avg != null ? ` · avg ${r1(b.avg)}` : ''}`;
+      // (The average is in the rating badge already.)
+      return `${fmtInt(b.brews.length)} brews`;
   }
 }
 
@@ -47,15 +48,14 @@ export const flags = (b: { origins: string[] }, m: Pick<Model, 'mark'>) =>
   b.origins.map(m.mark).join('');
 
 /**
- * A bag on the Beans page. `showStatus` (the All filter, where bags of every status mix) adds its
- * status as a pill, in that status's own icon and colour.
+ * A bag on the Beans page: its status as a small pill under the roaster (in that status's own
+ * icon and colour), then its origin, process and tasting notes.
  */
-export function BeanCard({ b, m, showStatus }: { b: BeanView; m: Model; showStatus?: boolean }) {
+export function BeanCard({ b, m }: { b: BeanView; m: Model; showStatus?: boolean }) {
   const sheets = useSheets();
   const now = new Date();
   const age = b.roasted_on ? daysBetween(parseDay(b.roasted_on), now) : null;
   const live = b.status === 'drinking';
-  const by = BUY_AGAIN.find((x) => x.key === b.buy_again);
   return (
     <div
       className="card bean"
@@ -76,6 +76,13 @@ export function BeanCard({ b, m, showStatus }: { b: BeanView; m: Model; showStat
             {b.images[0] && flags(b, m) ? flags(b, m) + ' ' : ''}
             {b.roasterName || 'No roaster'}
           </div>
+          {/* Its status as a small pill, and (in the freezer) the rest still to come. */}
+          <div className="bean-st">
+            <span className={`tag st-pill s-${b.status}`}>
+              <Icon name={STATUS_ICON[b.status]} size={13} />
+              {statusOf(b.status)?.label ?? b.status}
+            </span>
+          </div>
         </div>
         <div className="ml">{b.avg != null ? <RB v={r1(b.avg)} /> : null}</div>
       </div>
@@ -91,18 +98,23 @@ export function BeanCard({ b, m, showStatus }: { b: BeanView; m: Model; showStat
           <span>roasted {agoLabel(age)}</span>
         )}
       </div>
-      {b.tags.length > 0 && <TagRow tags={b.tags} />}
+      {/* Where it's from, how it was processed, then what it tastes of: each its own soft tone. */}
+      {(b.origins.length > 0 || b.process || b.tags.length > 0) && (
+        <div className="bean-cloud">
+          {b.origins.map((o) => (
+            <span key={`o-${o}`} className="tag t-origin">
+              {o}
+            </span>
+          ))}
+          {b.process && <span className="tag t-process">{b.process}</span>}
+          {b.tags.map((t) => (
+            <span key={`t-${t}`} className="tag t-note">
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="flexrow">
-        {showStatus && (
-          <span className={`tag st-pill s-${b.status}`}>
-            <Icon name={STATUS_ICON[b.status]} size={13} />
-            {statusOf(b.status)?.label ?? b.status}
-          </span>
-        )}
-        {b.process && <span className="tag">{b.process}</span>}
-        {b.status === 'finished' && by && (
-          <span className={'tag ' + by.tone}>Buy again: {by.label}</span>
-        )}
         {live && (
           <button
             type="button"

@@ -884,7 +884,12 @@ function Timeline({ b }: { b: BeanView }) {
   // keeping the order of things on the same day.
   // `on`: the day it goes in on (its own day, unless said otherwise).
   const place = (it: Item & { day: string }, on = it.day) => {
-    const at = items.findIndex((x) => (x.kind === 'event' ? x.e.on_day : x.day) > on);
+    const at = items.findIndex((x) =>
+      x.kind === 'event'
+        ? // A brew goes before the move to finished on its day: it's the bag's last cup.
+          x.e.on_day > on || (it.kind === 'brew' && x.e.on_day === on && x.e.status === 'finished')
+        : x.day > on,
+    );
     items.splice(at < 0 ? items.length : at, 0, it);
   };
   if (b.roasted_on) place({ kind: 'roast', day: b.roasted_on });

@@ -142,7 +142,9 @@ type BeanFields = z.output<typeof beanPatch>;
 async function openOnBrew(db: D1Database, beanId: string | null | undefined, brewedAt: string) {
   if (!beanId) return;
   const bean = (await loadBeans(db, beanId))[0];
-  if (!bean || bean.status === 'drinking') return;
+  // Only a bag not open yet (ordered, in the freezer, resting) opens: one already open stays, and
+  // a finished one stays finished (a last cup logged after marking it finished doesn't reopen it).
+  if (!bean || bean.status === 'drinking' || bean.status === 'finished') return;
   const settings = await loadSettings(db);
   const latest = bean.events.at(-1)?.on_day;
   let day = dayIn(new Date(brewedAt), settings.time_zone);

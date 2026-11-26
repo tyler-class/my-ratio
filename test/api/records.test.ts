@@ -134,6 +134,16 @@ describe('records', () => {
     expect(again.events).toHaveLength(2);
   });
 
+  it('logging a last cup after marking a bag finished keeps it finished', async () => {
+    const api = await session();
+    const b = (await api.post<Bean>('/beans', { name: 'All gone', status: 'drinking' })).data;
+    await api.patch(`/beans/${b.id}`, { status: 'finished' });
+    await api.post('/brews', { bean_id: b.id, dose_g: 18 });
+    const now = (await api.get<AppState>('/state')).data.beans.find((x) => x.id === b.id)!;
+    expect(now.status).toBe('finished');
+    expect(now.events.at(-1)?.status).toBe('finished');
+  });
+
   it('deleting a bag deletes its brews; deleting a roaster keeps its bags', async () => {
     const api = await session();
     const r = (await api.post<Roaster>('/roasters', { name: 'Gone Roasters' })).data;

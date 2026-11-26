@@ -1,6 +1,6 @@
 {
   "name": "ratio",
-  "version": "1.2.9",
+  "version": "1.2.10",
   "private": true,
   "description": "A coffee brewing log you host yourself on Cloudflare.",
   "license": "MIT",

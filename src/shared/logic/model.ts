@@ -195,10 +195,11 @@ export interface Combo {
 }
 
 /**
- * The recipe that rated best on average: grinder, grind, ratio and water temperature together
- * (with the method it was mostly brewed by),
- * every one sharing the top average (to one decimal) listed, so a tie shows them all. Recipes
- * tried twice or more count first; with none repeated yet, single brews stand in.
+ * The recipe of the best-rated brew: its grinder, grind, ratio and water temperature together
+ * (with the method it was mostly brewed by). One brew is enough: no need to have tried it twice.
+ * When brews with different recipes share the top rating, the most recent one's recipe wins.
+ * `ids` are that recipe's brews at that top rating (the ones starred); `n` and `avg` are over all
+ * of the recipe's brews.
  */
 export function bestCombos(
   bean: BeanView,
@@ -234,12 +235,26 @@ export function bestCombos(
     method: mostCommon(brews.map((x) => x.method)),
     ratio: mostCommon(brews.map((x) => Math.round(x.ratio! * 100) / 100))!,
   }));
-  const repeated = all.filter((c) => c.n >= 2);
-  const pool = repeated.length ? repeated : all;
-  const top = Math.max(...pool.map((c) => Math.round(c.avg * 10)));
-  return pool
-    .filter((c) => Math.round(c.avg * 10) === top)
-    .sort((a, b) => b.n - a.n || a.ratio - b.ratio);
+  // The best-rated brew among them (the most recent on a tie).
+  let best: BrewView | null = null;
+  for (const { brews } of by.values())
+    for (const x of brews)
+      if (
+        !best ||
+        x.rating! > best.rating! ||
+        (x.rating === best.rating && x.date.getTime() > best.date.getTime())
+      )
+        best = x;
+  if (!best) return [];
+  const combo = all.find((c) => c.ids.includes(best.id))!;
+  const group = [...by.values()].find((g) => g.c.ids === combo.ids)!;
+  return [
+    {
+      ...combo,
+      ids: group.brews.filter((x) => x.rating === best.rating).map((x) => x.id),
+      bestId: best.id,
+    },
+  ];
 }
 
 /** The value seen most often (the first seen on a tie), ignoring blanks. */

@@ -199,23 +199,27 @@ describe('units and time zones', () => {
 describe('bestCombos', () => {
   const at = (grind: number, water: number, rating: number, d: number) =>
     brew({ bean_id: 'c1', grind, water_ml: water, rating, brewed_at: ago(d) });
-  it('picks the grind and ratio together that rated best, listing ties', () => {
+  it('takes the recipe of the single best-rated brew, even tried once', () => {
     const brews = [
       at(6, 320, 8, 1), // 6 · 1:16
       at(6, 320, 9, 2), // 6 · 1:16 → avg 8.5 over 2
       at(5, 340, 9, 3), // 5 · 1:17
-      at(5, 340, 8, 4), // 5 · 1:17 → avg 8.5 over 2 (a tie)
-      at(7, 300, 10, 5), // tried once: doesn't beat repeated ones
+      at(7, 300, 10, 5), // tried once, rated best: this one
       at(6, 340, 6, 6),
-      at(6, 340, 6, 7),
     ];
     const m = buildModel(state([bean({ id: 'c1' })], brews), NOW);
     const best = bestCombos(m.beanMap.get('c1')!);
-    expect(best.map((c) => [c.grind, c.ratio, c.avg, c.n])).toEqual([
-      ['6', 16, 8.5, 2],
-      ['5', 17, 8.5, 2],
-    ]);
-    expect(best[0]!.bestId).toBe(brews[1]!.id);
+    expect(best).toHaveLength(1);
+    expect(best[0]).toMatchObject({ grind: '7', n: 1, bestId: brews[3]!.id });
+    expect(best[0]!.ids).toEqual([brews[3]!.id]);
+  });
+
+  it('on a tie between recipes, takes the most recent', () => {
+    const brews = [at(6, 320, 9, 4), at(5, 340, 9, 1), at(7, 300, 8, 2)];
+    const m = buildModel(state([bean({ id: 'c1' })], brews), NOW);
+    const best = bestCombos(m.beanMap.get('c1')!);
+    expect(best).toHaveLength(1);
+    expect(best[0]).toMatchObject({ grind: '5', bestId: brews[1]!.id });
   });
 });
 
